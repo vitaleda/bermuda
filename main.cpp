@@ -8,6 +8,12 @@
 #endif
 #include "game.h"
 #include "systemstub.h"
+#ifdef BERMUDA_VITA
+#include <psp2/power.h>
+#include <psp2/kernel/processmgr.h>
+#include <psp2/io/fcntl.h>
+#include <psp2/io/stat.h>
+#endif
 
 static const char *USAGE =
 	"Bermuda Syndrome\n"
@@ -54,9 +60,26 @@ static void mainLoop() {
 
 #undef main
 int main(int argc, char *argv[]) {
+#ifdef BERMUDA_VITA
+	int ret = debugNetInit("192.168.1.30", 18194, DEBUG);
+
+	sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_AUTO_SUSPEND);
+	scePowerSetArmClockFrequency(444);
+	// Initialze File System Factory
+	sceIoMkdir("ux0:data", 0755);
+	sceIoMkdir("ux0:data/bermuda", 0755);
+	sceIoMkdir("ux0:data/bermuda/DATA", 0755);
+	sceIoMkdir("ux0:data/bermuda/SAVE", 0755);
+	sceIoMkdir("ux0:data/bermuda/MUSIC", 0755);
+
+	const char *dataPath = "ux0:data/bermuda/DATA";
+	const char *savePath = "ux0:data/bermuda/SAVE";
+	const char *musicPath = "ux0:data/bermuda/MUSIC";
+#else
 	const char *dataPath = "DATA";
 	const char *savePath = ".";
 	const char *musicPath = "MUSIC";
+#endif
 	for (int i = 1; i < argc; ++i) {
 		bool opt = false;
 		if (strlen(argv[i]) >= 2) {
@@ -85,6 +108,10 @@ int main(int argc, char *argv[]) {
 		lastFrameTimeStamp = g_stub->getTimeStamp();
 	}
 	fini();
+#endif
+#ifdef BERMUDA_VITA
+	debugNetFinish();
+	sceKernelExitProcess(0);
 #endif
 	return 0;
 }

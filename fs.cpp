@@ -10,6 +10,10 @@
 #ifdef BERMUDA_POSIX
 #include <dirent.h>
 #include <sys/stat.h>
+#elif BERMUDA_VITA
+#include <psp2/io/dirent.h>
+#include <psp2/io/stat.h>
+#include <psp2/types.h>
 #endif
 #include <sys/param.h>
 #include <unistd.h>
@@ -101,9 +105,32 @@ struct FileSystem_Win32 : FileSystem_impl {
 FileSystem_impl *FileSystem_impl::create() { return new FileSystem_Win32; }
 #endif
 
-#ifdef BERMUDA_POSIX
+#if defined(BERMUDA_POSIX) || defined(BERMUDA_VITA)
 struct FileSystem_POSIX : FileSystem_impl {
 	void buildFileListFromDirectory(const char *dir) {
+#ifdef BERMUDA_VITA
+		SceUID d = sceIoDopen(dir);
+
+		if (d) {
+			SceIoDirent de;
+			memset(&de, 0, sizeof(de));
+
+			while (sceIoDread(d, &de) > 0) {
+				if (de.d_name[0] == '.') {
+					continue;
+				}
+				char filePath[MAXPATHLEN];
+				snprintf(filePath, sizeof(filePath), "%s/%s", dir, de.d_name);
+				SceIoStat st = de.d_stat;
+				if (SCE_S_ISDIR(st.st_mode)) {
+					buildFileListFromDirectory(filePath);
+				} else {
+					addFileToList(filePath);
+				}
+			}
+			sceIoDclose(d);
+		}
+#else
 		DIR *d = opendir(dir);
 		if (d) {
 			dirent *de;
@@ -124,6 +151,7 @@ struct FileSystem_POSIX : FileSystem_impl {
 			}
 			closedir(d);
 		}
+#endif
 	}
 };
 FileSystem_impl *FileSystem_impl::create() { return new FileSystem_POSIX; }

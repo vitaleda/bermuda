@@ -3,7 +3,7 @@
  * Copyright (C) 2007-2011 Gregory Montoir
  */
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -15,6 +15,21 @@ enum {
 	kSoundSampleSize = 4096,
 	kVideoSurfaceDepth = 32,
 };
+
+#ifdef BERMUDA_VITA
+#define VITA_BTN_TRIANGLE 0
+#define VITA_BTN_CIRCLE 1
+#define VITA_BTN_CROSS 2
+#define VITA_BTN_SQUARE 3
+#define VITA_BTN_LTRIGGER 4
+#define VITA_BTN_RTRIGGER 5
+#define VITA_BTN_DOWN 6
+#define VITA_BTN_LEFT 7
+#define VITA_BTN_UP 8
+#define VITA_BTN_RIGHT 9
+#define VITA_BTN_SELECT 10
+#define VITA_BTN_START 11
+#endif
 
 struct SystemStub_SDL : SystemStub {
 	Mixer *_mixer;
@@ -35,6 +50,9 @@ struct SystemStub_SDL : SystemStub {
 	int _videoW, _videoH;
 	bool _fullScreenDisplay;
 	int _soundSampleRate;
+#ifdef BERMUDA_VITA
+	SDL_Joystick *_joystick;
+#endif
 
 	SystemStub_SDL() :
 #if SDL_VERSION_ATLEAST(2, 0, 0)
@@ -71,6 +89,9 @@ struct SystemStub_SDL : SystemStub {
 	virtual Mixer *getMixer() { return _mixer; }
 
 	void handleEvent(const SDL_Event &ev, bool &paused);
+#ifdef BERMUDA_VITA
+	void handleEventVita(const SDL_Event &ev, bool &paused);
+#endif
 	void setFullscreen(bool fullscreen);
 };
 
@@ -87,7 +108,7 @@ static int eventHandler(void *userdata, SDL_Event *ev) {
 #endif
 
 void SystemStub_SDL::init(const char *title, int w, int h) {
-	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK);
 	SDL_ShowCursor(SDL_DISABLE);
 	_quit = false;
 	memset(&_pi, 0, sizeof(_pi));
@@ -102,6 +123,9 @@ void SystemStub_SDL::init(const char *title, int w, int h) {
 	static const uint32_t pfmt = SDL_PIXELFORMAT_RGB888; //SDL_PIXELFORMAT_RGB565;
 	_gameTexture = SDL_CreateTexture(_renderer, pfmt, SDL_TEXTUREACCESS_STREAMING, _screenW, _screenH);
 	_fmt = SDL_AllocFormat(pfmt);
+#ifdef BERMUDA_VITA
+	_joystick = SDL_JoystickOpen(0);
+#endif
 #else
 	SDL_WM_SetCaption(title, NULL);
 #endif
@@ -118,7 +142,11 @@ void SystemStub_SDL::init(const char *title, int w, int h) {
 
 	_videoW = _videoH = 0;
 
+#ifdef BERMUDA_VITA
+	_fullScreenDisplay = true;
+#else
 	_fullScreenDisplay = false;
+#endif
 	setFullscreen(_fullScreenDisplay);
 	_soundSampleRate = 0;
 
@@ -155,6 +183,12 @@ void SystemStub_SDL::destroy() {
 		free(_gameBuffer);
 		_gameBuffer = 0;
 	}
+#ifdef BERMUDA_VITA
+	if (_joystick) {
+		SDL_JoystickClose(_joystick);
+		_joystick = 0;
+	}
+#endif
 	SDL_Quit();
 }
 
@@ -336,7 +370,11 @@ void SystemStub_SDL::processEvents() {
 	while (!_quit) {
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev)) {
+#ifdef BERMUDA_VITA
+			handleEventVita(ev, paused);
+#else
 			handleEvent(ev, paused);
+#endif
 		}
 		if (paused) {
 			SDL_Delay(100);
@@ -345,6 +383,69 @@ void SystemStub_SDL::processEvents() {
 		}
 	}
 }
+
+#ifdef BERMUDA_VITA
+void SystemStub_SDL::handleEventVita(const SDL_Event &ev, bool &paused) {
+	switch (ev.type) {
+		case SDL_JOYBUTTONDOWN:
+		case SDL_JOYBUTTONUP:
+			if (_joystick) {
+				const bool pressed = (ev.jbutton.state == SDL_PRESSED);
+				switch (ev.jbutton.button) {
+					case VITA_BTN_SQUARE:
+						_pi.space = pressed; // use weapon
+						break;
+					case VITA_BTN_CIRCLE:
+						_pi.shift = pressed; // run / store weapon
+						break;
+					case VITA_BTN_CROSS:
+						_pi.enter = pressed; // use current selected item / skip video or dialogue
+						break;
+					case VITA_BTN_TRIANGLE:
+						_pi.tab = pressed; // display inventory
+						break;
+					case VITA_BTN_UP:
+						if (pressed) {
+							_pi.dirMask |= PlayerInput::DIR_UP;
+						} else if (ev.jbutton.state == SDL_RELEASED){
+							_pi.dirMask &= ~PlayerInput::DIR_UP;
+						}
+						break;
+					case VITA_BTN_RIGHT:
+						if (pressed) {
+							_pi.dirMask |= PlayerInput::DIR_RIGHT;
+						} else if (ev.jbutton.state == SDL_RELEASED){
+							_pi.dirMask &= ~PlayerInput::DIR_RIGHT;
+						}
+						break;
+					case VITA_BTN_DOWN:
+						if (pressed) {
+							_pi.dirMask |= PlayerInput::DIR_DOWN;
+						} else if (ev.jbutton.state == SDL_RELEASED) {
+							_pi.dirMask &= ~PlayerInput::DIR_DOWN;
+						}
+						break;
+					case VITA_BTN_LEFT:
+						if (pressed) {
+							_pi.dirMask |= PlayerInput::DIR_LEFT;
+						} else if (ev.jbutton.state == SDL_RELEASED){
+							_pi.dirMask &= ~PlayerInput::DIR_LEFT;
+						}
+						break;
+					case VITA_BTN_RTRIGGER:
+						_pi.save = pressed; // save state
+						break;
+					case VITA_BTN_LTRIGGER:
+						_pi.load = pressed; // load last saved state
+						break;
+				}
+			}
+			break;
+		default:
+			break;
+	}
+}
+#endif
 
 void SystemStub_SDL::handleEvent(const SDL_Event &ev, bool &paused) {
 	switch (ev.type) {

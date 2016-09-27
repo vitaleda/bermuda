@@ -1,15 +1,21 @@
 
-#include <SDL.h>
-#include <SDL_mixer.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_mixer.h>
 #include "file.h"
 #include "mixer.h"
 #include "util.h"
 
 struct MixerSDL: Mixer {
 
+#ifdef BERMUDA_VITA
+	static const int kMixFreq = 48000;
+	static const int kMixBufSize = 1024;
+	static const int kChannels = 1;
+#else
 	static const int kMixFreq = 22050;
 	static const int kMixBufSize = 4096;
 	static const int kChannels = 4;
+#endif
 
 	bool _isOpen;
 	Mix_Music *_music;
@@ -27,11 +33,17 @@ struct MixerSDL: Mixer {
 			return;
 		}
 		Mix_Init(MIX_INIT_OGG | MIX_INIT_FLUIDSYNTH);
+#ifdef BERMUDA_VITA
+		if (Mix_OpenAudio(kMixFreq, AUDIO_S16SYS, 1, kMixBufSize) < 0) {
+#else
 		if (Mix_OpenAudio(kMixFreq, AUDIO_S16SYS, 2, kMixBufSize) < 0) {
+#endif
 			warning("Mix_OpenAudio failed: %s", Mix_GetError());
 		}
 		Mix_AllocateChannels(kChannels);
+#ifndef BERMUDA_VITA
 		Mix_VolumeMusic(MIX_MAX_VOLUME / 2);
+#endif
 		_isOpen = true;
 	}
 	virtual void close() {
