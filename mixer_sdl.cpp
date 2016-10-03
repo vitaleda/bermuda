@@ -70,11 +70,17 @@ struct MixerSDL: Mixer {
 		stopMusic();
 		const char *ext = strrchr(f->_path, '.');
 		if (ext) {
+#ifdef BERMUDA_VITA
+			loadMusicVita(f);
+			*id = -1;
+			return;
+#else
 			if (strcasecmp(ext, ".ogg") != 0 && strcasecmp(ext, ".mid") != 0) {
 				loadMusic(f);
 				*id = -1;
 				return;
 			}
+#endif
 		}
 		playMusic(f->_path);
 		*id = -1;
@@ -103,6 +109,25 @@ struct MixerSDL: Mixer {
 			}
 		}
 	}
+
+#ifdef BERMUDA_VITA
+	void loadMusicVita(File *f) {
+		uint8_t *_musicBuf = (uint8_t *)malloc(f->size());
+		if (_musicBuf) {
+			const int size = f->read(_musicBuf, f->size());
+			SDL_RWops *rw = SDL_RWFromConstMem(_musicBuf, size);
+			if (rw) {
+				_music = Mix_LoadMUS_RW(rw, size);
+				if (_music) {
+					Mix_PlayMusic(_music, 0);
+				} else {
+					warning("Failed to load music, %s", Mix_GetError());
+				}
+			}
+		}
+	}
+
+#endif
 
 	void playMusic(const char *path) {
 		_music = Mix_LoadMUS(path);
