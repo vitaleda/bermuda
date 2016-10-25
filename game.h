@@ -315,6 +315,9 @@ struct Game {
 	void redrawObjectBoxes(int previousObject, int currentObject);
 	void redrawObjects();
 	void playVideo(const char *name);
+#ifdef BERMUDA_VITA
+	void playVideoVita(const char *name, const char *musicName);
+#endif
 	void drawBitmapSequenceDemo(int num);
 	void stopMusic();
 	void playMusic(const char *name);

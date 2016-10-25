@@ -96,6 +96,12 @@ int main(int argc, char *argv[]) {
 	init(dataPath, savePath, musicPath);
 #ifdef __EMSCRIPTEN__
 	emscripten_set_main_loop(mainLoop, kCycleDelay, 0);
+#elif BERMUDA_VITA
+	while (!g_stub->_quit) {
+		g_game->mainLoop();
+		g_stub->processEvents();
+	}
+	fini();
 #else
 	uint32_t lastFrameTimeStamp = g_stub->getTimeStamp();
 	while (!g_stub->_quit) {

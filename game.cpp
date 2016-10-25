@@ -116,8 +116,13 @@ void Game::init() {
 		_bitmapSequence = 0;
 		_nextState = kStateBitmapSequence;
 	} else {
+#ifdef BERMUDA_VITA
+		playVideoVita("DATA/LOGO.AVI", "..\\midi\\logo.mid");
+		playVideoVita("DATA/INTRO.AVI", "..\\midi\\intro.mid");
+#else
 		playVideo("DATA/LOGO.AVI");
 		playVideo("DATA/INTRO.AVI");
+#endif
 		_nextState = kStateGame;
 	}
 }
@@ -506,7 +511,11 @@ void Game::runObjectsScript() {
 		stopMusic();
 		clearSceneData(-1);
 		_varsTable[241] = 2;
+#ifdef BERMUDA_VITA
+		playVideoVita("DATA/FINAL.AVI", "..\\midi\\final.mid");
+#else
 		playVideo("DATA/FINAL.AVI");
+#endif
 		strcpy(_tempTextBuffer, "END.SCN");
 		_switchScene = true;
 	}
@@ -946,6 +955,25 @@ void Game::playVideo(const char *name) {
 #endif
 }
 
+#ifdef BERMUDA_VITA
+void Game::playVideoVita(const char *name, const char *musicName) {
+	char *filePath = (char *)malloc(strlen(_dataPath) + 1 + strlen(name) + 1);
+	if (filePath) {
+		sprintf(filePath, "%s/%s", _dataPath, name);
+		File f;
+		if (f.open(filePath)) {
+			_stub->fillRect(0, 0, kGameScreenWidth, kGameScreenHeight, 0);
+			_stub->updateScreen();
+			strcpy(_musicName, musicName);
+			playMusic(_musicName);
+			AVI_Player player(_mixer, _stub);
+			player.play(&f);
+		}
+		free(filePath);
+	}
+}
+#endif
+
 void Game::drawBitmapSequenceDemo(int num) {
 	static const char *suffixes[] = { "", "1", "2", "3", 0 };
 	char filename[32];
@@ -983,6 +1011,11 @@ void Game::playMusic(const char *name) {
 		{ "telquad.mid", 10 },
 		{ "gameover.mid", 11 },
 		{ "complete.mid", 12 },
+#ifdef BERMUDA_VITA
+		{ "logo.mid", 13 },
+		{ "intro.mid", 14 },
+		{ "final.mid", 15 },
+#endif
 		// demo game version
 		{ "musik.mid", 3 }
 	};
