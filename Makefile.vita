@@ -4,11 +4,9 @@ SOURCES  := src
 DATA     := data
 INCLUDES := include
 
-LIBS = -ldebugnet -lSDL2_mixer -lSDL2 -lvorbisfile -logg -lvorbis \
-	-lvita2d -lSceCommonDialog_stub -lSceAudio_stub -lSceKernel_stub \
-	-lSceNet_stub -lSceNetCtl_stub -lz -lSceDisplay_stub -lSceGxm_stub \
-	-lSceSysmodule_stub -lSceCtrl_stub -lSceTouch_stub -lm -lc \
-	-lSceAppUtil_stub -lScePgf_stub -lSceRtc_stub -lScePower_stub
+LIBS = -ldebugnet -lSDL2_mixer -lSDL2 -lvorbisfile -lvorbis -logg -lvita2d -lz \
+	-lSceAppMgr_stub -lSceAudio_stub -lSceCtrl_stub -lSceDisplay_stub -lSceGxm_stub \
+	-lSceNetCtl_stub -lScePower_stub -lSceSysmodule_stub
 
 COMMON_OBJS = avi_player.o \
 	bag.o \
