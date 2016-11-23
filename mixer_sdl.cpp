@@ -95,7 +95,7 @@ struct MixerSDL: Mixer {
 	}
 
 	void loadMusic(File *f) {
-		uint8_t *_musicBuf = (uint8_t *)malloc(f->size());
+		_musicBuf = (uint8_t *)malloc(f->size());
 		if (_musicBuf) {
 			const int size = f->read(_musicBuf, f->size());
 			SDL_RWops *rw = SDL_RWFromConstMem(_musicBuf, size);
@@ -112,7 +112,7 @@ struct MixerSDL: Mixer {
 
 #ifdef BERMUDA_VITA
 	void loadMusicVita(File *f) {
-		uint8_t *_musicBuf = (uint8_t *)malloc(f->size());
+		_musicBuf = (uint8_t *)malloc(f->size());
 		if (_musicBuf) {
 			const int size = f->read(_musicBuf, f->size());
 			SDL_RWops *rw = SDL_RWFromConstMem(_musicBuf, size);
