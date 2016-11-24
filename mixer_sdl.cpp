@@ -9,16 +9,19 @@ struct MixerSDL: Mixer {
 
 #ifdef BERMUDA_VITA
 	static const int kMixFreq = 48000;
-	static const int kMixBufSize = 1024;
-	static const int kChannels = 1;
 #else
 	static const int kMixFreq = 22050;
+#endif
 	static const int kMixBufSize = 4096;
+#ifdef BERMUDA_VITA
+	static const int kChannels = 1;
+#else
 	static const int kChannels = 4;
 #endif
 
 	bool _isOpen;
 	Mix_Music *_music;
+	Mix_Chunk *_chunk;
 	uint8_t *_musicBuf;
 
 	MixerSDL()
@@ -41,7 +44,9 @@ struct MixerSDL: Mixer {
 			warning("Mix_OpenAudio failed: %s", Mix_GetError());
 		}
 		Mix_AllocateChannels(kChannels);
-#ifndef BERMUDA_VITA
+#ifdef BERMUDA_VITA
+		Mix_VolumeMusic(MIX_MAX_VOLUME);
+#else
 		Mix_VolumeMusic(MIX_MAX_VOLUME / 2);
 #endif
 		_isOpen = true;
@@ -58,9 +63,12 @@ struct MixerSDL: Mixer {
 
 	virtual void playSound(File *f, int *id) {
 		debug(DBG_MIXER, "MixerSDL::playSound() path '%s'", f->_path);
-		Mix_Chunk *chunk = Mix_LoadWAV(f->_path);
-		if (chunk) {
-			*id = Mix_PlayChannel(-1, chunk, 0);
+		if (_chunk) {
+			Mix_FreeChunk(_chunk);
+		}
+		_chunk = Mix_LoadWAV(f->_path);
+		if (_chunk) {
+			*id = Mix_PlayChannel(-1, _chunk, 0);
 		} else {
 			*id = -1;
 		}
