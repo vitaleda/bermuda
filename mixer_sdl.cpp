@@ -65,6 +65,7 @@ struct MixerSDL: Mixer {
 		debug(DBG_MIXER, "MixerSDL::playSound() path '%s'", f->_path);
 		if (_chunk) {
 			Mix_FreeChunk(_chunk);
+			_chunk = 0;
 		}
 		_chunk = Mix_LoadWAV(f->_path);
 		if (_chunk) {
@@ -169,6 +170,10 @@ struct MixerSDL: Mixer {
 	virtual void stopAll() {
 		debug(DBG_MIXER, "MixerSDL::stopAll()");
 		Mix_HaltChannel(-1);
+		if (_chunk) {
+			Mix_FreeChunk(_chunk);
+			_chunk = 0;
+		}
 		stopMusic();
 	}
 };
