@@ -61,8 +61,6 @@ static void mainLoop() {
 #undef main
 int main(int argc, char *argv[]) {
 #ifdef BERMUDA_VITA
-	int ret = debugNetInit("192.168.1.30", 18194, DEBUG);
-
 	sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_AUTO_SUSPEND);
 	scePowerSetArmClockFrequency(444);
 	// Initialze File System Factory
@@ -116,7 +114,6 @@ int main(int argc, char *argv[]) {
 	fini();
 #endif
 #ifdef BERMUDA_VITA
-	debugNetFinish();
 	sceKernelExitProcess(0);
 #endif
 	return 0;

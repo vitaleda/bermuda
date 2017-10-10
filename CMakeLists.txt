@@ -50,7 +50,6 @@ add_executable(${VITA_APPNAME}
 )
 
 target_link_libraries(${VITA_APPNAME}
-  debugnet
   SDL2_mixer
   SDL2
   vorbisfile
@@ -58,12 +57,10 @@ target_link_libraries(${VITA_APPNAME}
   ogg
   vita2d
   z
-  SceAppMgr_stub
   SceAudio_stub
   SceCtrl_stub
   SceDisplay_stub
   SceGxm_stub
-  SceNetCtl_stub
   ScePower_stub
   SceSysmodule_stub
   SceTouch_stub

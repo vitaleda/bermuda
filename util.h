@@ -8,10 +8,6 @@
 
 #include "intern.h"
 
-#ifdef BERMUDA_VITA
-#include <debugnet.h>
-#endif
-
 enum {
 	DBG_INFO     = 1 << 0,
 	DBG_GAME     = 1 << 1,
