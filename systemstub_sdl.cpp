@@ -90,6 +90,7 @@ struct SystemStub_SDL : SystemStub {
 
 	void handleEvent(const SDL_Event &ev, bool &paused);
 #ifdef BERMUDA_VITA
+	void renderCopyVita(SDL_Renderer *renderer, SDL_Texture *texture);
 	void handleEventVita(const SDL_Event &ev, bool &paused);
 #endif
 	void setFullscreen(bool fullscreen);
@@ -142,11 +143,7 @@ void SystemStub_SDL::init(const char *title, int w, int h) {
 
 	_videoW = _videoH = 0;
 
-#ifdef BERMUDA_VITA
-	_fullScreenDisplay = true;
-#else
 	_fullScreenDisplay = false;
-#endif
 	setFullscreen(_fullScreenDisplay);
 	_soundSampleRate = 0;
 
@@ -267,7 +264,11 @@ void SystemStub_SDL::updateScreen() {
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	SDL_RenderClear(_renderer);
 	SDL_UpdateTexture(_gameTexture, NULL, _gameBuffer, _screenW * sizeof(uint32_t));
+#ifdef BERMUDA_VITA
+	renderCopyVita(_renderer, _gameTexture);
+#else
 	SDL_RenderCopy(_renderer, _gameTexture, NULL, NULL);
+#endif
 	SDL_RenderPresent(_renderer);
 #else
 	if (SDL_LockSurface(_screen) == 0) {
@@ -344,7 +345,11 @@ void SystemStub_SDL::unlockYUV() {
 	if (_videoBuffer) {
 		SDL_UpdateTexture(_videoTexture, NULL, _videoBuffer, _videoW * sizeof(uint16_t));
 	}
+#ifdef BERMUDA_VITA
+	renderCopyVita(_renderer, _videoTexture);
+#else
 	SDL_RenderCopy(_renderer, _videoTexture, NULL, NULL);
+#endif
 	SDL_RenderPresent(_renderer);
 #else
 	if (_yuv) {
@@ -385,6 +390,32 @@ void SystemStub_SDL::processEvents() {
 }
 
 #ifdef BERMUDA_VITA
+void SystemStub_SDL::renderCopyVita(SDL_Renderer *renderer, SDL_Texture *texture) {
+	if (_fullScreenDisplay) {
+		SDL_RenderCopy(renderer, texture, NULL, NULL);
+		return;
+	}
+
+	int sh = 544;
+	int sw = (float)_screenW*((float)sh/(float)_screenH);
+	int x = (960 - sw)/2;
+	int y = 0;
+
+	SDL_Rect src;
+	src.x = 0;
+	src.y = 0;
+	src.w = _screenW;
+	src.h = _screenH;
+
+	SDL_Rect dst;
+	dst.x = x;
+	dst.y = 0;
+	dst.w = sw;
+	dst.h = sh;
+
+	SDL_RenderCopy(renderer, texture, &src, &dst);
+}
+
 void SystemStub_SDL::handleEventVita(const SDL_Event &ev, bool &paused) {
 	switch (ev.type) {
 		case SDL_JOYBUTTONDOWN:
@@ -437,6 +468,12 @@ void SystemStub_SDL::handleEventVita(const SDL_Event &ev, bool &paused) {
 						break;
 					case VITA_BTN_LTRIGGER:
 						_pi.load = pressed; // load last saved state
+						break;
+					case VITA_BTN_SELECT:
+						if (pressed) {
+							_fullScreenDisplay = !_fullScreenDisplay;
+							setFullscreen(_fullScreenDisplay);
+						}
 						break;
 				}
 			}
