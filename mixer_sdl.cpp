@@ -35,10 +35,11 @@ struct MixerSDL: Mixer {
 		if (_isOpen) {
 			return;
 		}
-		Mix_Init(MIX_INIT_OGG | MIX_INIT_FLUIDSYNTH);
 #ifdef BERMUDA_VITA
+		Mix_Init(MIX_INIT_OGG);
 		if (Mix_OpenAudio(kMixFreq, AUDIO_S16SYS, 1, kMixBufSize) < 0) {
 #else
+		Mix_Init(MIX_INIT_OGG | MIX_INIT_FLUIDSYNTH);
 		if (Mix_OpenAudio(kMixFreq, AUDIO_S16SYS, 2, kMixBufSize) < 0) {
 #endif
 			warning("Mix_OpenAudio failed: %s", Mix_GetError());
