@@ -6,6 +6,12 @@
 #include <cstdarg>
 #include "util.h"
 
+#ifdef BERMUDA_VITA
+#include <psp2/kernel/clib.h>
+#define printf sceClibPrintf
+#define fprintf(stderr, ...) sceClibPrintf(__VA_ARGS__)
+#endif
+
 uint16_t g_debugMask;
 
 void debug(uint16_t cm, const char *msg, ...) {
@@ -39,5 +45,4 @@ void warning(const char *msg, ...) {
 	va_end(va);
 	fprintf(stderr, "WARNING: %s!\n", buf);
 	fflush(stderr);
-
 }

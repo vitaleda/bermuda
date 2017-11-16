@@ -74,18 +74,18 @@ typedef struct SDL_Texture
 	int modMode;                /**< The texture modulation mode */
 	SDL_BlendMode blendMode;    /**< The texture blend mode */
 	Uint8 r, g, b, a;           /**< Texture modulation values */
-	
+
 	SDL_Renderer *renderer;
-	
+
 	/* Support for formats not supported directly by the renderer */
 	SDL_Texture *native;
 	SDL_SW_YUVTexture *yuv;
 	void *pixels;
 	int pitch;
 	SDL_Rect locked_rect;
-	
+
 	void *driverdata;           /**< Driver specific texture representation */
-	
+
 	SDL_Texture *prev;
 	SDL_Texture *next;
 } SDL_Texture;
@@ -194,8 +194,8 @@ void SystemStub_SDL::init(const char *title, int w, int h) {
 	_gameTexture = SDL_CreateTexture(_renderer, pfmt, SDL_TEXTUREACCESS_STREAMING, _screenW, _screenH);
 	_fmt = SDL_AllocFormat(pfmt);
 #ifdef BERMUDA_VITA
-	if (_gameTexture!=NULL) {
-		VITA_TextureData *sdl_hwtex=(VITA_TextureData *) _gameTexture->native->driverdata;
+	if (_gameTexture != NULL) {
+		VITA_TextureData *sdl_hwtex = (VITA_TextureData *)_gameTexture->native->driverdata;
 		vita2d_texture_set_filters(sdl_hwtex->tex, SCE_GXM_TEXTURE_FILTER_POINT, SCE_GXM_TEXTURE_FILTER_LINEAR);
 	}
 	_joystick = SDL_JoystickOpen(0);
