@@ -13,6 +13,7 @@
 #include <psp2/kernel/processmgr.h>
 #include <psp2/io/fcntl.h>
 #include <psp2/io/stat.h>
+int _newlib_heap_size_user = 192 * 1024 * 1024;
 #endif
 
 static const char *USAGE =
