@@ -3,6 +3,8 @@
  * Copyright (C) 2007-2011 Gregory Montoir
  */
 
+#include <getopt.h>
+#include <sys/stat.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -23,30 +25,18 @@ static const char *USAGE =
 	"  --savepath=PATH   Path to save files (default '.')\n"
 	"  --musicpath=PATH  Path to music files (default 'MUSIC')\n";
 
-static bool parseOption(const char *arg, const char *longCmd, const char **opt) {
-	bool handled = false;
-	if (arg[0] == '-' && arg[1] == '-') {
-		if (strncmp(arg + 2, longCmd, strlen(longCmd)) == 0) {
-			*opt = arg + 2 + strlen(longCmd);
-			handled = true;
-		}
-	}
-	return handled;
-}
-
 static Game *g_game;
 static SystemStub *g_stub;
 
 static void init(const char *dataPath, const char *savePath, const char *musicPath) {
 	g_stub = SystemStub_SDL_create();
-	g_game = new Game(g_stub, dataPath, savePath, musicPath);
+	g_game = new Game(g_stub, dataPath ? dataPath : "DATA", savePath ? savePath : ".", musicPath ? musicPath : "MUSIC");
 	g_game->init();
 }
 
 static void fini() {
 	g_game->fini();
 	delete g_game;
-	g_stub->destroy();
 	delete g_stub;
 	g_stub = 0;
 }
@@ -75,19 +65,42 @@ int main(int argc, char *argv[]) {
 	const char *savePath = "ux0:data/bermuda/SAVE";
 	const char *musicPath = "ux0:data/bermuda/MUSIC";
 #else
-	const char *dataPath = "DATA";
-	const char *savePath = ".";
-	const char *musicPath = "MUSIC";
+	char *dataPath = 0;
+	char *savePath = 0;
+	char *musicPath = 0;
 #endif
-	for (int i = 1; i < argc; ++i) {
-		bool opt = false;
-		if (strlen(argv[i]) >= 2) {
-			opt |= parseOption(argv[i], "datapath=", &dataPath);
-			opt |= parseOption(argv[i], "savepath=", &savePath);
-			opt |= parseOption(argv[i], "musicpath=", &musicPath);
+	if (argc == 2) {
+		// data path as the only command line argument
+		struct stat st;
+		if (stat(argv[1], &st) == 0 && S_ISDIR(st.st_mode)) {
+			dataPath = strdup(argv[1]);
 		}
-		if (!opt) {
-			printf("%s", USAGE);
+	}
+	while (1) {
+		static struct option options[] = {
+			{ "datapath",  required_argument, 0, 'd' },
+			{ "savepath",  required_argument, 0, 's' },
+			{ "musicpath", required_argument, 0, 'm' },
+			{ "help",      no_argument,       0, 'h' },
+			{ 0, 0, 0, 0 }
+		};
+		int index;
+		const int c = getopt_long(argc, argv, "", options, &index);
+		if (c == -1) {
+			break;
+		}
+		switch (c) {
+		case 'd':
+			dataPath = strdup(optarg);
+			break;
+		case 's':
+			savePath = strdup(optarg);
+			break;
+		case 'm':
+			musicPath = strdup(optarg);
+			break;
+		default:
+			fprintf(stdout, "%s", USAGE);
 			return 0;
 		}
 	}
@@ -116,6 +129,10 @@ int main(int argc, char *argv[]) {
 #endif
 #ifdef BERMUDA_VITA
 	sceKernelExitProcess(0);
+#else
+	free(dataPath);
+	free(savePath);
+	free(musicPath);
 #endif
 	return 0;
 }

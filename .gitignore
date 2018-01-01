@@ -1,9 +1,3 @@
 *.o
 bs
-bermuda-vita.elf
-bermuda-vita.elf.unstripped.elf
-bermuda-vita.velf
-bermuda-vita.vpk
-eboot.bin
-obj
-param.sfo
+build

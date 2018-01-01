@@ -20,6 +20,10 @@ include("${VITASDK}/share/vita.cmake" REQUIRED)
 # Flags and includes
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -DBERMUDA_VITA -DBERMUDA_VORBIS -DBERMUDA_ZLIB -fno-exceptions")
 
+include_directories(
+  ${VITASDK}/arm-vita-eabi/include/SDL2
+)
+
 link_directories(
   ${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -34,6 +38,7 @@ add_executable(${VITA_APPNAME}
   fs.cpp
   game.cpp
   main.cpp
+  menu.cpp
   mixer_sdl.cpp
   mixer_soft.cpp
   opcodes.cpp
@@ -42,6 +47,7 @@ add_executable(${VITA_APPNAME}
   random.cpp
   resource.cpp
   saveload.cpp
+  screenshot.cpp
   staticres.cpp
   str.cpp
   systemstub_sdl.cpp

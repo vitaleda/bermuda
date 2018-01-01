@@ -3,6 +3,7 @@
  * Copyright (C) 2007-2011 Gregory Montoir
  */
 
+#include <sys/param.h>
 #include "avi_player.h"
 #include "decoder.h"
 #include "file.h"
@@ -12,6 +13,10 @@
 #include "systemstub.h"
 
 static const char *kGameWindowTitle = "Bermuda Syndrome";
+static const char *kGameWindowTitleDemo = "Bermuda Syndrome Demo";
+
+static const char *kGameStateFileNameFormat = "%s/bermuda.%03d";
+
 static const bool kCheatNoHit = false;
 
 Game::Game(SystemStub *stub, const char *dataPath, const char *savePath, const char *musicPath)
@@ -26,6 +31,11 @@ Game::~Game() {
 }
 
 void Game::detectVersion() {
+	_isDemo = _fs.existFile("-00.SCN");
+	if (_isDemo) {
+		_startupScene = "-00.SCN";
+		return;
+	}
 	// underscore ('_') for french & english versions and dash ('-') for german
 	static const char *startupScenesTable[] = { "-01.SCN", "_01.SCN", 0 };
 	_startupScene = 0;
@@ -38,7 +48,6 @@ void Game::detectVersion() {
 	if (!_startupScene) {
 		error("Unable to find startup scene file");
 	}
-	_isDemo = _fs.existFile("-00.SCN");
 }
 
 void Game::restart() {
@@ -81,6 +90,7 @@ void Game::restart() {
 	_currentSceneWgp[0] = 0;
 	_tempTextBuffer[0] = 0;
 	_currentSceneScn[0] = 0;
+	_currentSceneSav[0] = 0;
 
 	_bagPosX = 585;
 	_bagPosY = 23;
@@ -106,25 +116,32 @@ void Game::restart() {
 	_sceneObjectStatusCount = 0;
 
 	strcpy(_tempTextBuffer, _startupScene);
+
+	_keyboardReplaySize = _keyboardReplayOffset = 0;
+	_keyboardReplayData = 0;
 }
 
 void Game::init() {
-	_stub->init(kGameWindowTitle, kGameScreenWidth, kGameScreenHeight);
+	const char *caption = kGameWindowTitle;
+	if (_isDemo) {
+		_stub->setIcon(_bermudaDemoBmpData, _bermudaDemoBmpSize);
+		caption = kGameWindowTitleDemo;
+	} else {
+		_stub->setIcon(_bermudaIconBmpData, _bermudaIconBmpSize);
+	}
+	_stub->init(caption, kGameScreenWidth, kGameScreenHeight);
 	allocateTables();
 	loadCommonSprites();
 	restart();
 	if (_isDemo) {
-		_bitmapSequence = 0;
-		_nextState = kStateBitmapSequence;
+		_nextState = kStateGame;
 	} else {
 #ifdef BERMUDA_VITA
 		playVideoVita("DATA/LOGO.AVI", "..\\midi\\logo.mid");
-		playVideoVita("DATA/INTRO.AVI", "..\\midi\\intro.mid");
 #else
 		playVideo("DATA/LOGO.AVI");
-		playVideo("DATA/INTRO.AVI");
 #endif
-		_nextState = kStateGame;
+		_nextState = kStateBitmap;
 	}
 }
 
@@ -144,6 +161,10 @@ void Game::mainLoop() {
 		case kStateDialogue:
 			finiDialogue();
 			break;
+		case kStateMenu1:
+		case kStateMenu2:
+			finiMenu();
+			break;
 		}
 		_state = _nextState;
 		// init
@@ -153,8 +174,12 @@ void Game::mainLoop() {
 		case kStateDialogue:
 			initDialogue();
 			break;
-		case kStateBitmapSequence:
-			drawBitmapSequenceDemo(_bitmapSequence);
+		case kStateBitmap:
+			displayTitleBitmap();
+			break;
+		case kStateMenu1:
+		case kStateMenu2:
+			initMenu(1 + _state - kStateMenu1);
 			break;
 		}
 	}
@@ -171,23 +196,31 @@ void Game::mainLoop() {
 				}
 				strcpy(_currentSceneScn, _tempTextBuffer);
 				parseSCN(_tempTextBuffer);
-			} else if (stringEndsWith(_tempTextBuffer, "SAV")) {
-				if (_isDemo && strcmp(_tempTextBuffer, "A16.SAV") == 0) {
-					debug(DBG_GAME, "End of demo interactive part");
-					_nextState = kStateBitmapSequence;
-					break;
-				}
-				warning("Ignoring savestate load '%s'", _tempTextBuffer);
-				// should work though, as the original savestates load fine
-				// now, but this "feature" is only used in the demo AFAICT,
-				// so no need to bother...
 			} else {
 				debug(DBG_GAME, "load mov '%s'", _tempTextBuffer);
 				loadMOV(_tempTextBuffer);
 			}
 			if (_loadState) {
 				_loadState = false;
-				loadState(_stateSlot, false);
+				if (_currentSceneSav[0]) {
+					FileHolder fh(_fs, _currentSceneSav);
+					if (!fh._fp) {
+						warning("Unable to load game state from file '%s'", _tempTextBuffer);
+					} else {
+						warning("Loading game state from '%s'", _currentSceneSav);
+						loadState(fh._fp, kDemoSavSlot, false);
+						loadKBR(_currentSceneSav);
+					}
+				} else {
+					char filePath[MAXPATHLEN];
+					snprintf(filePath, sizeof(filePath), kGameStateFileNameFormat, _savePath, _stateSlot);
+					File f;
+					if (!f.open(filePath, "rb")) {
+						warning("Unable to load game state from file '%s'", filePath);
+					} else {
+						loadState(&f, _stateSlot, false);
+					}
+				}
 				playMusic(_musicName);
 				memset(_keysPressed, 0, sizeof(_keysPressed));
 			}
@@ -221,18 +254,54 @@ void Game::mainLoop() {
 			_nextState = kStateGame;
 		}
 		break;
-	case kStateBitmapSequence:
+	case kStateBitmap:
 		if (_stub->_pi.enter) {
 			_stub->_pi.enter = false;
-			++_bitmapSequence;
-			if (_bitmapSequence == 3) {
-				_nextState = kStateGame;
-			} else if (_bitmapSequence == 4) {
-				restart();
-				_nextState = kStateGame;
-			} else {
-				drawBitmapSequenceDemo(_bitmapSequence);
-			}
+#ifdef BERMUDA_VITA
+			playVideoVita("DATA/INTRO.AVI", "..\\midi\\intro.mid");
+#else
+			playVideo("DATA/INTRO.AVI");
+#endif
+			_nextState = kStateGame;
+		}
+		break;
+	case kStateMenu1:
+		handleMenu();
+		switch (_menuOption) {
+		case kMenuOptionNewGame:
+			restart();
+			_nextState = kStateGame;
+			break;
+		case kMenuOptionLoadGame:
+			_stub->_pi.load = true;
+			_nextState = kStateGame;
+			break;
+		case kMenuOptionSaveGame:
+			_stub->_pi.save = true;
+			_nextState = kStateGame;
+			break;
+		case kMenuOptionQuitGame:
+			_nextState = kStateMenu2;
+			break;
+		}
+		if (_stub->_pi.escape) {
+			_stub->_pi.escape = false;
+			_nextState = kStateGame;
+		}
+		break;
+	case kStateMenu2:
+		handleMenu();
+		switch (_menuOption) {
+		case kMenuOptionExitGame:
+			_stub->_quit = true;
+			break;
+		case kMenuOptionReturnGame:
+			_nextState = kStateGame;
+			break;
+		}
+		if (_stub->_pi.escape) {
+			_stub->_pi.escape = false;
+			_nextState = kStateGame;
 		}
 		break;
 	}
@@ -260,9 +329,15 @@ void Game::updateKeysPressedTable() {
 	_keysPressed[38] = (_stub->_pi.dirMask & PlayerInput::DIR_UP)    ? 1 : 0;
 	_keysPressed[39] = (_stub->_pi.dirMask & PlayerInput::DIR_RIGHT) ? 1 : 0;
 	_keysPressed[40] = (_stub->_pi.dirMask & PlayerInput::DIR_DOWN)  ? 1 : 0;
+	if (_keyboardReplayData) {
+		for (uint32_t i = 0; i < sizeof(_keysPressed) && _keyboardReplayOffset < _keyboardReplaySize; ++i) {
+			_keysPressed[i] |= _keyboardReplayData[_keyboardReplayOffset];
+			++_keyboardReplayOffset;
+		}
+	}
 	if (_stub->_pi.tab) {
 		_stub->_pi.tab = false;
-		if (_varsTable[0] < 10 && _loadDataState == 2 && _sceneNumber != -1000) {
+		if (_varsTable[0] < 10 && _loadDataState == 2 && _sceneNumber > -1000) {
 			_nextState = kStateBag;
 		}
 	}
@@ -280,12 +355,32 @@ void Game::updateKeysPressedTable() {
 	}
 	if (_stub->_pi.load) {
 		_stub->_pi.load = false;
-		loadState(_stateSlot, true);
-		_loadState = _switchScene; // gamestate will get loaded on scene switch
+		char filePath[MAXPATHLEN];
+		snprintf(filePath, sizeof(filePath), kGameStateFileNameFormat, _savePath, _stateSlot);
+		File f;
+		if (!f.open(filePath, "rb")) {
+			warning("Unable to load game state from file '%s'", filePath);
+		} else {
+			loadState(&f, _stateSlot, true);
+			_loadState = _switchScene; // gamestate will get loaded on scene switch
+		}
 	}
 	if (_stub->_pi.save) {
 		_stub->_pi.save = false;
-		saveState(_stateSlot);
+		char filePath[MAXPATHLEN];
+		snprintf(filePath, sizeof(filePath), kGameStateFileNameFormat, _savePath, _stateSlot);
+		File f;
+		if (!f.open(filePath, "wb")) {
+			warning("Unable to save game state to file '%s'", filePath);
+		} else {
+			saveState(&f, _stateSlot);
+		}
+	}
+	if (!_isDemo) {
+		if (_stub->_pi.escape) {
+			_stub->_pi.escape = false;
+			_nextState = kStateMenu1;
+		}
 	}
 	if (_gameOver) {
 		if (_stub->_pi.enter) {
@@ -489,6 +584,21 @@ void Game::runObjectsScript() {
 		if (_objectScript.nextScene != -1 && _objectScript.nextScene < _sceneConditionsCount) {
 			strcpy(_tempTextBuffer, _nextScenesTable[_objectScript.nextScene].name);
 			_switchScene = true;
+			_currentSceneSav[0] = 0;
+			if (stringEndsWith(_tempTextBuffer, "SAV")) {
+
+				// debug(DBG_GAME, "End of demo interactive part");
+				// strcpy(_tempTextBuffer, "A03.SCN");
+
+				FileHolder fh(_fs, _tempTextBuffer);
+				if (!fh._fp) {
+					warning("Unable to load game state from file '%s'", _tempTextBuffer);
+				} else {
+					strcpy(_currentSceneSav, _tempTextBuffer);
+					loadState(fh._fp, kDemoSavSlot, true);
+					_loadState = _switchScene; // load on scene switch
+				}
+			}
 		}
 		for (int i = 0; i < _sceneObjectsCount; ++i) {
 			reinitializeObject(i);
@@ -836,7 +946,22 @@ void Game::redrawObjects() {
 	if (previousObject >= 0) {
 		redrawObjectBoxes(previousObject, previousObject);
 	}
-	if (_sceneNumber != -1000 && _sceneObjectsCount != 0) {
+
+	// no overlay graphics on static screens
+	//
+	// retail data files
+	//   PIC0.SCN:        SceneNumber    -1000
+	//   PIC1.SCN:        SceneNumber    -1000
+	//   PIC2.SCN:        SceneNumber    -1000
+	//   PIC3.SCN:        SceneNumber    -1000
+	//
+	// demo data files
+	//   A01.SCN:        SceneNumber    -1000
+	//   A02.SCN:        SceneNumber    -1001
+	//   A03.SCN:        SceneNumber    -1003
+	//
+
+	if (_sceneNumber > -1000 && _sceneObjectsCount != 0) {
 		if (!_isDemo && _gameOver) {
 			decodeLzss(_bermudaOvrData + 2, _tempDecodeBuffer);
 			drawObject(93, _bitmapBuffer1.h - 230, _tempDecodeBuffer, &_bitmapBuffer1);
@@ -958,34 +1083,26 @@ void Game::playVideo(const char *name) {
 
 #ifdef BERMUDA_VITA
 void Game::playVideoVita(const char *name, const char *musicName) {
-	char *filePath = (char *)malloc(strlen(_dataPath) + 1 + strlen(name) + 1);
-	if (filePath) {
-		sprintf(filePath, "%s/%s", _dataPath, name);
-		File f;
-		if (f.open(filePath)) {
-			_stub->fillRect(0, 0, kGameScreenWidth, kGameScreenHeight, 0);
-			_stub->updateScreen();
-			strcpy(_musicName, musicName);
-			playMusic(_musicName);
-			AVI_Player player(_mixer, _stub);
-			player.play(&f);
-		}
-		free(filePath);
-	}
+   char *filePath = (char *)malloc(strlen(_dataPath) + 1 + strlen(name) + 1);
+   if (filePath) {
+	   sprintf(filePath, "%s/%s", _dataPath, name);
+	   File f;
+	   if (f.open(filePath)) {
+		   _stub->fillRect(0, 0, kGameScreenWidth, kGameScreenHeight, 0);
+		   _stub->updateScreen();
+		   strcpy(_musicName, musicName);
+		   playMusic(_musicName);
+		   AVI_Player player(_mixer, _stub);
+		   player.play(&f);
+	   }
+	   free(filePath);
+   }
 }
 #endif
 
-void Game::drawBitmapSequenceDemo(int num) {
-	static const char *suffixes[] = { "", "1", "2", "3", 0 };
-	char filename[32];
-	snprintf(filename, sizeof(filename), "..\\wgp\\title%s.bmp", suffixes[num]);
-	if (!_fs.existFile(filename)) {
-		char *p = strrchr(filename, '.');
-		if (p) {
-			strcpy(p + 1, "wgp");
-		}
-	}
-	loadWGP(filename);
+void Game::displayTitleBitmap() {
+	loadWGP("..\\menu\\nointro.wgp");
+	playMusic("..\\midi\\title.mid");
 	_stub->setPalette(_bitmapBuffer0 + kOffsetBitmapPalette, 256);
 	_stub->copyRect(0, 0, kGameScreenWidth, kGameScreenHeight, _bitmapBuffer1.bits, _bitmapBuffer1.pitch);
 }
@@ -1001,6 +1118,7 @@ void Game::playMusic(const char *name) {
 		int digitalTrack;
 	} _midiMapping[] = {
 		// retail game version
+		{ "title.mid", 1 },
 		{ "flyaway.mid", 2 },
 		{ "jungle1.mid", 3 },
 		{ "sadialog.mid", 4 },
@@ -1020,7 +1138,6 @@ void Game::playMusic(const char *name) {
 		// demo game version
 		{ "musik.mid", 3 }
 	};
-	assert(_musicTrack == 0);
 	if (name[0] == 0 || strncmp(name, "..\\midi\\", 8) != 0) {
 		return;
 	}

@@ -1,61 +1,42 @@
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_mixer.h>
+#include <SDL.h>
+#define MIX_INIT_FLUIDSYNTH MIX_INIT_MID // renamed with SDL2_mixer >= 2.0.2
+#include <SDL_mixer.h>
 #include "file.h"
 #include "mixer.h"
 #include "util.h"
 
 struct MixerSDL: Mixer {
 
-#ifdef BERMUDA_VITA
-	static const int kMixFreq = 48000;
-#else
 	static const int kMixFreq = 22050;
-#endif
 	static const int kMixBufSize = 4096;
-#ifdef BERMUDA_VITA
-	static const int kChannels = 1;
-#else
 	static const int kChannels = 4;
-#endif
 
 	bool _isOpen;
+	Mix_Chunk *_sounds[kChannels];
 	Mix_Music *_music;
-	Mix_Chunk *_chunk;
 	uint8_t *_musicBuf;
 
 	MixerSDL()
 		: _isOpen(false), _music(0), _musicBuf(0) {
+		memset(_sounds, 0, sizeof(_sounds));
 	}
 
 	virtual ~MixerSDL() {
 	}
 
 	virtual void open() {
-		if (_isOpen) {
-			return;
-		}
-#ifdef BERMUDA_VITA
-		Mix_Init(MIX_INIT_OGG);
-		if (Mix_OpenAudio(kMixFreq, AUDIO_S16SYS, 1, kMixBufSize) < 0) {
-#else
-		Mix_Init(MIX_INIT_OGG | MIX_INIT_FLUIDSYNTH);
+		assert(!_isOpen);
+		Mix_Init(MIX_INIT_OGG | MIX_INIT_MID);
 		if (Mix_OpenAudio(kMixFreq, AUDIO_S16SYS, 2, kMixBufSize) < 0) {
-#endif
 			warning("Mix_OpenAudio failed: %s", Mix_GetError());
 		}
 		Mix_AllocateChannels(kChannels);
-#ifdef BERMUDA_VITA
-		Mix_VolumeMusic(MIX_MAX_VOLUME);
-#else
 		Mix_VolumeMusic(MIX_MAX_VOLUME / 2);
-#endif
 		_isOpen = true;
 	}
 	virtual void close() {
-		if (!_isOpen) {
-			return;
-		}
+		assert(_isOpen);
 		stopAll();
 		Mix_CloseAudio();
 		Mix_Quit();
@@ -64,13 +45,18 @@ struct MixerSDL: Mixer {
 
 	virtual void playSound(File *f, int *id) {
 		debug(DBG_MIXER, "MixerSDL::playSound() path '%s'", f->_path);
-		if (_chunk) {
-			Mix_FreeChunk(_chunk);
-			_chunk = 0;
-		}
-		_chunk = Mix_LoadWAV(f->_path);
-		if (_chunk) {
-			*id = Mix_PlayChannel(-1, _chunk, 0);
+		Mix_Chunk *chunk = Mix_LoadWAV(f->_path);
+		if (chunk) {
+			const int ch = Mix_PlayChannel(-1, chunk, 0);
+			if (ch >= 0 && ch < kChannels) {
+				if (_sounds[ch]) {
+					Mix_FreeChunk(_sounds[ch]);
+				}
+				_sounds[ch] = chunk;
+			} else {
+				warning("Sound playing on channel %d (max %d)", ch, kChannels);
+			}
+			*id = ch;
 		} else {
 			*id = -1;
 		}
@@ -101,7 +87,10 @@ struct MixerSDL: Mixer {
 	virtual void stopSound(int id) {
 		debug(DBG_MIXER, "MixerSDL::stopSound()");
 		Mix_HaltChannel(id);
-		// Mix_FreeChunk
+		if (id >= 0 && id < kChannels && _sounds[id]) {
+			Mix_FreeChunk(_sounds[id]);
+			_sounds[id] = 0;
+		}
 	}
 
 	void loadMusic(File *f) {
@@ -171,10 +160,6 @@ struct MixerSDL: Mixer {
 	virtual void stopAll() {
 		debug(DBG_MIXER, "MixerSDL::stopAll()");
 		Mix_HaltChannel(-1);
-		if (_chunk) {
-			Mix_FreeChunk(_chunk);
-			_chunk = 0;
-		}
 		stopMusic();
 	}
 };

@@ -8,6 +8,7 @@
 #include <emscripten.h>
 #endif
 #include "mixer.h"
+#include "screenshot.h"
 #include "systemstub.h"
 
 enum {
@@ -43,16 +44,6 @@ typedef struct SDL_SW_YUVTexture
 	Uint32 target_format;
 	int w, h;
 	Uint8 *pixels;
-	int *colortab;
-	Uint32 *rgb_2_pix;
-	void (*Display1X) (int *colortab, Uint32 * rgb_2_pix,
-						unsigned char *lum, unsigned char *cr,
-						unsigned char *cb, unsigned char *out,
-						int rows, int cols, int mod);
-	void (*Display2X) (int *colortab, Uint32 * rgb_2_pix,
-						unsigned char *lum, unsigned char *cr,
-						unsigned char *cb, unsigned char *out,
-						int rows, int cols, int mod);
 
 	/* These are just so we don't have to allocate them separately */
 	Uint16 pitches[3];
@@ -119,6 +110,9 @@ struct SystemStub_SDL : SystemStub {
 	int _videoW, _videoH;
 	bool _fullScreenDisplay;
 	int _soundSampleRate;
+	const uint8_t *_iconData;
+	int _iconSize;
+	int _screenshot;
 #ifdef BERMUDA_VITA
 	SDL_Joystick *_joystick;
 #endif
@@ -130,7 +124,9 @@ struct SystemStub_SDL : SystemStub {
 		_screen(0), _yuv(0),
 #endif
 		_fmt(0),
-		_gameBuffer(0), _videoBuffer(0) {
+		_gameBuffer(0), _videoBuffer(0),
+		_iconData(0), _iconSize(0) {
+		_screenshot = 1;
 		_mixer = Mixer_SDL_create(this);
 	}
 	virtual ~SystemStub_SDL() {
@@ -139,6 +135,8 @@ struct SystemStub_SDL : SystemStub {
 
 	virtual void init(const char *title, int w, int h);
 	virtual void destroy();
+	virtual void setIcon(const uint8_t *data, int size);
+	virtual void showCursor(bool show);
 	virtual void setPalette(const uint8_t *pal, int n);
 	virtual void fillRect(int x, int y, int w, int h, uint8_t color);
 	virtual void copyRect(int x, int y, int w, int h, const uint8_t *buf, int pitch, bool transparent);
@@ -187,8 +185,17 @@ void SystemStub_SDL::init(const char *title, int w, int h) {
 
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	_window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h, 0);
-	_renderer = SDL_CreateRenderer(_window, -1, SDL_RENDERER_ACCELERATED);
+	if (_iconData) {
+		SDL_RWops *rw = SDL_RWFromConstMem(_iconData, _iconSize);
+		SDL_Surface *icon = SDL_LoadBMP_RW(rw, 1);
+		if (icon) {
+			SDL_SetWindowIcon(_window, icon);
+			SDL_FreeSurface(icon);
+		}
+	}
 	SDL_GetWindowSize(_window, &_screenW, &_screenH);
+	_renderer = SDL_CreateRenderer(_window, -1, SDL_RENDERER_ACCELERATED);
+	SDL_RenderSetLogicalSize(_renderer, _screenW, _screenH);
 
 	static const uint32_t pfmt = SDL_PIXELFORMAT_RGB888; //SDL_PIXELFORMAT_RGB565;
 	_gameTexture = SDL_CreateTexture(_renderer, pfmt, SDL_TEXTUREACCESS_STREAMING, _screenW, _screenH);
@@ -260,6 +267,15 @@ void SystemStub_SDL::destroy() {
 	}
 #endif
 	SDL_Quit();
+}
+
+void SystemStub_SDL::setIcon(const uint8_t *data, int size) {
+	_iconData = data;
+	_iconSize = size;
+}
+
+void SystemStub_SDL::showCursor(bool show) {
+	SDL_ShowCursor(show ? SDL_ENABLE : SDL_DISABLE);
 }
 
 void SystemStub_SDL::setPalette(const uint8_t *pal, int n) {
@@ -469,11 +485,6 @@ void SystemStub_SDL::renderCopyVita(SDL_Renderer *renderer, SDL_Texture *texture
 		return;
 	}
 
-	int sh = 544;
-	int sw = (float)_screenW*((float)sh/(float)_screenH);
-	int x = (960 - sw)/2;
-	int y = 0;
-
 	SDL_Rect src;
 	src.x = 0;
 	src.y = 0;
@@ -481,10 +492,10 @@ void SystemStub_SDL::renderCopyVita(SDL_Renderer *renderer, SDL_Texture *texture
 	src.h = _screenH;
 
 	SDL_Rect dst;
-	dst.x = x;
+	dst.h = 544;
+	dst.w = (float)src.w * ((float)dst.h / (float)src.h);
 	dst.y = 0;
-	dst.w = sw;
-	dst.h = sh;
+	dst.x = (960 - dst.w) / 2;
 
 	SDL_RenderCopy(renderer, texture, &src, &dst);
 }
@@ -614,6 +625,35 @@ void SystemStub_SDL::handleEvent(const SDL_Event &ev, bool &paused) {
 		case SDLK_ESCAPE:
 			_pi.escape = false;
 			break;
+		case SDLK_c: {
+				// capture game screen buffer (no support for video YUYV buffer)
+				char name[32];
+				snprintf(name, sizeof(name), "screenshot-%03d.tga", _screenshot);
+				saveTGA(name, (const uint8_t *)_gameBuffer, _screenW, _screenH);
+				++_screenshot;
+				debug(DBG_INFO, "Written '%s'", name);
+			}
+			break;
+		case SDLK_f:
+			_pi.fastMode = !_pi.fastMode;
+			break;
+		case SDLK_s:
+			_pi.save = true;
+			break;
+		case SDLK_l:
+			_pi.load = true;
+			break;
+		case SDLK_w:
+			setFullscreen(!_fullScreenDisplay);
+			break;
+		case SDLK_KP_PLUS:
+		case SDLK_PAGEUP:
+			_pi.stateSlot = 1;
+			break;
+		case SDLK_KP_MINUS:
+		case SDLK_PAGEDOWN:
+			_pi.stateSlot = -1;
+			break;
 		default:
 			break;
 		}
@@ -651,27 +691,6 @@ void SystemStub_SDL::handleEvent(const SDL_Event &ev, bool &paused) {
 			break;
 		case SDLK_ESCAPE:
 			_pi.escape = true;
-			break;
-		case SDLK_f:
-			_pi.fastMode = !_pi.fastMode;
-			break;
-		case SDLK_s:
-			_pi.save = true;
-			break;
-		case SDLK_l:
-			_pi.load = true;
-			break;
-		case SDLK_w:
-			_fullScreenDisplay = !_fullScreenDisplay;
-			setFullscreen(_fullScreenDisplay);
-			break;
-		case SDLK_KP_PLUS:
-		case SDLK_PAGEUP:
-			_pi.stateSlot = 1;
-			break;
-		case SDLK_KP_MINUS:
-		case SDLK_PAGEDOWN:
-			_pi.stateSlot = -1;
 			break;
 		default:
 			break;
@@ -747,7 +766,10 @@ int SystemStub_SDL::getOutputSampleRate() {
 
 void SystemStub_SDL::setFullscreen(bool fullscreen) {
 #if SDL_VERSION_ATLEAST(2, 0, 0)
-	SDL_SetWindowFullscreen(_window, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+	if (_fullScreenDisplay != fullscreen) {
+		SDL_SetWindowFullscreen(_window, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+		_fullScreenDisplay = fullscreen;
+	}
 #else
 	_screen = SDL_SetVideoMode(_screenW, _screenH, kVideoSurfaceDepth, fullscreen ? SDL_FULLSCREEN : 0);
 	if (_screen) {
