@@ -193,13 +193,27 @@ enum {
 	kStateGame,
 	kStateBag,
 	kStateDialogue,
-	kStateBitmapSequence,
+	kStateBitmap,
+	kStateMenu1,
+	kStateMenu2,
+};
+
+enum {
+	// menu1
+	kMenuOptionNewGame = 0,
+	kMenuOptionLoadGame,
+	kMenuOptionSaveGame,
+	kMenuOptionQuitGame,
+	// menu2
+	kMenuOptionExitGame = 0,
+	kMenuOptionReturnGame,
 };
 
 enum {
 	kCycleDelay = 50,
 	kGameScreenWidth = 640,
 	kGameScreenHeight = 480,
+	kDemoSavSlot = -1,
 	kOffsetBitmapInfo = 0,
 	kOffsetBitmapPalette = kOffsetBitmapInfo + 40,
 	kOffsetBitmapBits = kOffsetBitmapPalette + 256 * 4,
@@ -315,7 +329,7 @@ struct Game {
 	void redrawObjectBoxes(int previousObject, int currentObject);
 	void redrawObjects();
 	void playVideo(const char *name);
-	void drawBitmapSequenceDemo(int num);
+	void displayTitleBitmap();
 	void stopMusic();
 	void playMusic(const char *name);
 	void changeObjectMotionFrame(int object, int object2, int useObject2, int count1, int count2, int useDx, int dx, int useDy, int dy);
@@ -327,6 +341,11 @@ struct Game {
 	bool compareObjectTransformYPos(int object, bool fetchCmp = true, int cmpY = -1);
 	void setupObjectPos(int object, int object2, int useObject2, int useData, int type1, int type2);
 	bool intersectsBox(int num, int index, int x1, int y1, int x2, int y2);
+
+	// menu.cpp
+	void initMenu(int num);
+	void finiMenu();
+	void handleMenu();
 
 	// opcodes.cpp
 	const GameConditionOpcode *findConditionOpcode(int num) const;
@@ -428,10 +447,11 @@ struct Game {
 	void loadWGP(const char *fileName);
 	void loadSPR(const char *fileName, SceneAnimation *sa);
 	void loadMOV(const char *fileName);
+	void loadKBR(const char *fileName);
 
 	// saveload.cpp
-	void saveState(int slot);
-	void loadState(int slot, bool switchScene);
+	void saveState(File *f, int slot);
+	void loadState(File *f, int slot, bool switchScene);
 
 	// win16.cpp (temporary helpers)
 	int win16_sndPlaySound(int op, void *data = 0);
@@ -450,7 +470,11 @@ struct Game {
 	int _stateSlot;
 	int _mixerSoundId;
 	int _mixerMusicId;
-	int _bitmapSequence;
+	int _menuObjectCount;
+	int _menuObjectMotion;
+	int _menuObjectFrames;
+	int _menuOption;
+	int _menuHighlight;
 
 	uint8_t *_bitmapBuffer0;
 	SceneBitmap _bitmapBuffer1;
@@ -461,6 +485,9 @@ struct Game {
 	SceneBitmap _bagBackgroundImage;
 	uint8_t *_bermudaSprData;
 	uint8_t *_bermudaSprDataTable[3];
+	uint32_t _keyboardReplaySize;
+	uint32_t _keyboardReplayOffset;
+	uint8_t *_keyboardReplayData;
 
 	// inventory
 	uint8_t *_lifeBarImageTable[11][12];
@@ -524,12 +551,13 @@ struct Game {
 	bool _lifeBarDisplayed2;
 	uint8_t _keysPressed[128];
 	int _mouseButtonsPressed;
-	int _musicTrack; // useless, always equal to 0
+	int _musicTrack;
 	char _musicName[40];
 	int _sceneNumber;
 	char _currentSceneWgp[128];
 	char _tempTextBuffer[128];
 	char _currentSceneScn[128];
+	char _currentSceneSav[128]; // non interactive parts of the demo relies on savestates
 	int _bagPosX, _bagPosY;
 	SceneObject *_sortedSceneObjectsTable[NUM_SCENE_OBJECTS];
 	SceneObject _sceneObjectsTable[NUM_SCENE_OBJECTS];
@@ -557,6 +585,10 @@ struct Game {
 	static const int _operatorOpCount;
 	static const uint16_t _fontData[];
 	static const uint8_t _fontCharWidth[];
+	static const uint8_t _bermudaIconBmpData[];
+	static const int _bermudaIconBmpSize;
+	static const uint8_t _bermudaDemoBmpData[];
+	static const int _bermudaDemoBmpSize;
 };
 
 #endif // GAME_H__
