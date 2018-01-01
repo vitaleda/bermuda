@@ -158,7 +158,6 @@ struct SystemStub_SDL : SystemStub {
 	void handleEvent(const SDL_Event &ev, bool &paused);
 #ifdef BERMUDA_VITA
 	void renderCopyVita(SDL_Renderer *renderer, SDL_Texture *texture);
-	void handleEventVita(const SDL_Event &ev, bool &paused);
 #endif
 	void setFullscreen(bool fullscreen);
 };
@@ -464,11 +463,7 @@ void SystemStub_SDL::processEvents() {
 	while (!_quit) {
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev)) {
-#ifdef BERMUDA_VITA
-			handleEventVita(ev, paused);
-#else
 			handleEvent(ev, paused);
-#endif
 		}
 		if (paused) {
 			SDL_Delay(100);
@@ -499,9 +494,11 @@ void SystemStub_SDL::renderCopyVita(SDL_Renderer *renderer, SDL_Texture *texture
 
 	SDL_RenderCopy(renderer, texture, &src, &dst);
 }
+#endif
 
-void SystemStub_SDL::handleEventVita(const SDL_Event &ev, bool &paused) {
+void SystemStub_SDL::handleEvent(const SDL_Event &ev, bool &paused) {
 	switch (ev.type) {
+#ifdef BERMUDA_VITA
 		case SDL_JOYBUTTONDOWN:
 		case SDL_JOYBUTTONUP:
 			if (_joystick) {
@@ -559,17 +556,13 @@ void SystemStub_SDL::handleEventVita(const SDL_Event &ev, bool &paused) {
 							setFullscreen(_fullScreenDisplay);
 						}
 						break;
+					case VITA_BTN_START:
+						_pi.escape = pressed;
+						break;
 				}
 			}
 			break;
-		default:
-			break;
-	}
-}
-#endif
-
-void SystemStub_SDL::handleEvent(const SDL_Event &ev, bool &paused) {
-	switch (ev.type) {
+#else
 	case SDL_QUIT:
 		_quit = true;
 		break;
@@ -718,6 +711,7 @@ void SystemStub_SDL::handleEvent(const SDL_Event &ev, bool &paused) {
 		_pi.mouseX = ev.motion.x;
 		_pi.mouseY = ev.motion.y;
 		break;
+#endif
 	default:
 		break;
 	}
