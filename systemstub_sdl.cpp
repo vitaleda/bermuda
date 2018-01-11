@@ -30,65 +30,6 @@ enum {
 #define VITA_BTN_RIGHT 9
 #define VITA_BTN_SELECT 10
 #define VITA_BTN_START 11
-
-#include <vita2d.h>
-// these three internal structures from SDL2 are needed to gain access to the raw
-// vita2d_texture pointer and be able to set the hw-filter to "linear" to improve the
-// image quality
-#ifndef VITA_TEXTUREDATA
-#define VITA_TEXTUREDATA
-
-typedef struct SDL_SW_YUVTexture
-{
-	Uint32 format;
-	Uint32 target_format;
-	int w, h;
-	Uint8 *pixels;
-
-	/* These are just so we don't have to allocate them separately */
-	Uint16 pitches[3];
-	Uint8 *planes[3];
-
-	/* This is a temporary surface in case we have to stretch copy */
-	SDL_Surface *stretch;
-	SDL_Surface *display;
-} SDL_SW_YUVTexture;
-
-/* Define the SDL texture structure */
-typedef struct SDL_Texture
-{
-	const void *magic;
-	Uint32 format;              /**< The pixel format of the texture */
-	int access;                 /**< SDL_TextureAccess */
-	int w;                      /**< The width of the texture */
-	int h;                      /**< The height of the texture */
-	int modMode;                /**< The texture modulation mode */
-	SDL_BlendMode blendMode;    /**< The texture blend mode */
-	Uint8 r, g, b, a;           /**< Texture modulation values */
-
-	SDL_Renderer *renderer;
-
-	/* Support for formats not supported directly by the renderer */
-	SDL_Texture *native;
-	SDL_SW_YUVTexture *yuv;
-	void *pixels;
-	int pitch;
-	SDL_Rect locked_rect;
-
-	void *driverdata;           /**< Driver specific texture representation */
-
-	SDL_Texture *prev;
-	SDL_Texture *next;
-} SDL_Texture;
-
-typedef struct VITA_TextureData
-{
-	vita2d_texture	*tex;
-	unsigned int	pitch;
-	unsigned int	w;
-	unsigned int	h;
-} VITA_TextureData;
-#endif
 #endif
 
 struct SystemStub_SDL : SystemStub {
@@ -183,6 +124,12 @@ void SystemStub_SDL::init(const char *title, int w, int h) {
 	_mixer->open();
 
 #if SDL_VERSION_ATLEAST(2, 0, 0)
+#ifdef BERMUDA_VITA
+	// improve image quality on Vita by enabling linear filtering
+	// this is only recently supported by SDL2 for Vita since 2017/12/24
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+#endif
+
 	_window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h, 0);
 	if (_iconData) {
 		SDL_RWops *rw = SDL_RWFromConstMem(_iconData, _iconSize);
@@ -200,10 +147,6 @@ void SystemStub_SDL::init(const char *title, int w, int h) {
 	_gameTexture = SDL_CreateTexture(_renderer, pfmt, SDL_TEXTUREACCESS_STREAMING, _screenW, _screenH);
 	_fmt = SDL_AllocFormat(pfmt);
 #ifdef BERMUDA_VITA
-	if (_gameTexture != NULL) {
-		VITA_TextureData *sdl_hwtex = (VITA_TextureData *)_gameTexture->native->driverdata;
-		vita2d_texture_set_filters(sdl_hwtex->tex, SCE_GXM_TEXTURE_FILTER_POINT, SCE_GXM_TEXTURE_FILTER_LINEAR);
-	}
 	_joystick = SDL_JoystickOpen(0);
 #endif
 #else
@@ -475,10 +418,6 @@ void SystemStub_SDL::processEvents() {
 
 #ifdef BERMUDA_VITA
 void SystemStub_SDL::renderCopyVita(SDL_Renderer *renderer, SDL_Texture *texture) {
-	if (_fullScreenDisplay) {
-		SDL_RenderCopy(renderer, texture, NULL, NULL);
-		return;
-	}
 
 	SDL_Rect src;
 	src.x = 0;
@@ -488,7 +427,11 @@ void SystemStub_SDL::renderCopyVita(SDL_Renderer *renderer, SDL_Texture *texture
 
 	SDL_Rect dst;
 	dst.h = 544;
-	dst.w = (float)src.w * ((float)dst.h / (float)src.h);
+	if (_fullScreenDisplay) {
+		dst.w = 960; // stretch to screen
+	} else {
+		dst.w = (float)src.w * ((float)dst.h / (float)src.h); // fit to screen
+	}
 	dst.y = 0;
 	dst.x = (960 - dst.w) / 2;
 
