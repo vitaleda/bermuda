@@ -418,10 +418,6 @@ void SystemStub_SDL::processEvents() {
 
 #ifdef BERMUDA_VITA
 void SystemStub_SDL::renderCopyVita(SDL_Renderer *renderer, SDL_Texture *texture) {
-	if (_fullScreenDisplay) {
-		SDL_RenderCopy(renderer, texture, NULL, NULL);
-		return;
-	}
 
 	SDL_Rect src;
 	src.x = 0;
@@ -431,7 +427,11 @@ void SystemStub_SDL::renderCopyVita(SDL_Renderer *renderer, SDL_Texture *texture
 
 	SDL_Rect dst;
 	dst.h = 544;
-	dst.w = (float)src.w * ((float)dst.h / (float)src.h);
+	if (_fullScreenDisplay) {
+		dst.w = 960; // stretch to screen
+	} else {
+		dst.w = (float)src.w * ((float)dst.h / (float)src.h); // fit to screen
+	}
 	dst.y = 0;
 	dst.x = (960 - dst.w) / 2;
 
