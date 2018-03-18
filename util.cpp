@@ -6,7 +6,7 @@
 #include <cstdarg>
 #include "util.h"
 
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 #include <psp2/kernel/clib.h>
 #define printf sceClibPrintf
 #define fprintf(stderr, ...) sceClibPrintf(__VA_ARGS__)

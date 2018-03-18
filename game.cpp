@@ -136,7 +136,7 @@ void Game::init() {
 	if (_isDemo) {
 		_nextState = kStateGame;
 	} else {
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 		playVideoVita("DATA/LOGO.AVI", "..\\midi\\logo.mid");
 #else
 		playVideo("DATA/LOGO.AVI");
@@ -257,7 +257,7 @@ void Game::mainLoop() {
 	case kStateBitmap:
 		if (_stub->_pi.enter) {
 			_stub->_pi.enter = false;
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 			playVideoVita("DATA/INTRO.AVI", "..\\midi\\intro.mid");
 #else
 			playVideo("DATA/INTRO.AVI");
@@ -622,7 +622,7 @@ void Game::runObjectsScript() {
 		stopMusic();
 		clearSceneData(-1);
 		_varsTable[241] = 2;
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 		playVideoVita("DATA/FINAL.AVI", "..\\midi\\final.mid");
 #else
 		playVideo("DATA/FINAL.AVI");
@@ -1081,7 +1081,7 @@ void Game::playVideo(const char *name) {
 #endif
 }
 
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 void Game::playVideoVita(const char *name, const char *musicName) {
    char *filePath = (char *)malloc(strlen(_dataPath) + 1 + strlen(name) + 1);
    if (filePath) {
@@ -1130,7 +1130,7 @@ void Game::playMusic(const char *name) {
 		{ "telquad.mid", 10 },
 		{ "gameover.mid", 11 },
 		{ "complete.mid", 12 },
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 		{ "logo.mid", 13 },
 		{ "intro.mid", 14 },
 		{ "final.mid", 15 },

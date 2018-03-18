@@ -10,7 +10,7 @@
 #endif
 #include "game.h"
 #include "systemstub.h"
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 #include <psp2/power.h>
 #include <psp2/kernel/processmgr.h>
 #include <psp2/io/fcntl.h>
@@ -51,15 +51,15 @@ static void mainLoop() {
 
 #undef main
 int main(int argc, char *argv[]) {
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 	sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_AUTO_SUSPEND);
 	scePowerSetArmClockFrequency(444);
 	// Initialze File System Factory
-	sceIoMkdir("ux0:data", 0755);
-	sceIoMkdir("ux0:data/bermuda", 0755);
-	sceIoMkdir("ux0:data/bermuda/DATA", 0755);
-	sceIoMkdir("ux0:data/bermuda/SAVE", 0755);
-	sceIoMkdir("ux0:data/bermuda/MUSIC", 0755);
+	sceIoMkdir("ux0:data", 0777);
+	sceIoMkdir("ux0:data/bermuda", 0777);
+	sceIoMkdir("ux0:data/bermuda/DATA", 0777);
+	sceIoMkdir("ux0:data/bermuda/SAVE", 0777);
+	sceIoMkdir("ux0:data/bermuda/MUSIC", 0777);
 
 	const char *dataPath = "ux0:data/bermuda/DATA";
 	const char *savePath = "ux0:data/bermuda/SAVE";
@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
 	init(dataPath, savePath, musicPath);
 #ifdef __EMSCRIPTEN__
 	emscripten_set_main_loop(mainLoop, kCycleDelay, 0);
-#elif BERMUDA_VITA
+#elif __vita__
 	while (!g_stub->_quit) {
 		g_game->mainLoop();
 		g_stub->processEvents();
@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
 	}
 	fini();
 #endif
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 	sceKernelExitProcess(0);
 #else
 	free(dataPath);

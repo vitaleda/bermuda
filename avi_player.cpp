@@ -346,7 +346,7 @@ void AVI_Player::play(File *f) {
 	_soundQueuePreloadSize = 0;
 	if (_demux.open(f)) {
 		_stub->setYUV(true, _demux._width, _demux._height);
-#ifndef BERMUDA_VITA
+#ifndef __vita__
 		_mixer->setMusicMix(this, AVI_Player::mixCallback);
 #endif
 		for (int i = 0; i < _demux._frames; ++i) {
@@ -360,7 +360,7 @@ void AVI_Player::play(File *f) {
 			while (_demux.readNextChunk(chunk)) {
 				switch (chunk.type) {
 				case kChunkAudioType:
-#ifndef BERMUDA_VITA
+#ifndef __vita__
 					decodeAudioChunk(chunk);
 #endif
 					break;
@@ -374,7 +374,7 @@ void AVI_Player::play(File *f) {
 				_stub->sleep(diff);
 			}
 		}
-#ifndef BERMUDA_VITA
+#ifndef __vita__
 		_mixer->setMusicMix(0, 0);
 #endif
 		_stub->setYUV(false, 0, 0);

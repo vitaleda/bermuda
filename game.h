@@ -329,7 +329,7 @@ struct Game {
 	void redrawObjectBoxes(int previousObject, int currentObject);
 	void redrawObjects();
 	void playVideo(const char *name);
-#ifdef BERMUDA_VITA
+#ifdef __vita__
    void playVideoVita(const char *name, const char *musicName);
 #endif
 	void displayTitleBitmap();

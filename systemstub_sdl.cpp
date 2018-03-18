@@ -17,7 +17,7 @@ enum {
 	kVideoSurfaceDepth = 32,
 };
 
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 #define VITA_BTN_TRIANGLE 0
 #define VITA_BTN_CIRCLE 1
 #define VITA_BTN_CROSS 2
@@ -54,7 +54,7 @@ struct SystemStub_SDL : SystemStub {
 	const uint8_t *_iconData;
 	int _iconSize;
 	int _screenshot;
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 	SDL_Joystick *_joystick;
 #endif
 
@@ -97,7 +97,7 @@ struct SystemStub_SDL : SystemStub {
 	virtual Mixer *getMixer() { return _mixer; }
 
 	void handleEvent(const SDL_Event &ev, bool &paused);
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 	void renderCopyVita(SDL_Renderer *renderer, SDL_Texture *texture);
 #endif
 	void setFullscreen(bool fullscreen);
@@ -124,7 +124,7 @@ void SystemStub_SDL::init(const char *title, int w, int h) {
 	_mixer->open();
 
 #if SDL_VERSION_ATLEAST(2, 0, 0)
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 	// improve image quality on Vita by enabling linear filtering
 	// this is only recently supported by SDL2 for Vita since 2017/12/24
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
@@ -146,7 +146,7 @@ void SystemStub_SDL::init(const char *title, int w, int h) {
 	static const uint32_t pfmt = SDL_PIXELFORMAT_RGB888; //SDL_PIXELFORMAT_RGB565;
 	_gameTexture = SDL_CreateTexture(_renderer, pfmt, SDL_TEXTUREACCESS_STREAMING, _screenW, _screenH);
 	_fmt = SDL_AllocFormat(pfmt);
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 	_joystick = SDL_JoystickOpen(0);
 #endif
 #else
@@ -202,7 +202,7 @@ void SystemStub_SDL::destroy() {
 		free(_gameBuffer);
 		_gameBuffer = 0;
 	}
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 	if (_joystick) {
 		SDL_JoystickClose(_joystick);
 		_joystick = 0;
@@ -295,7 +295,7 @@ void SystemStub_SDL::updateScreen() {
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	SDL_RenderClear(_renderer);
 	SDL_UpdateTexture(_gameTexture, NULL, _gameBuffer, _screenW * sizeof(uint32_t));
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 	renderCopyVita(_renderer, _gameTexture);
 #else
 	SDL_RenderCopy(_renderer, _gameTexture, NULL, NULL);
@@ -376,7 +376,7 @@ void SystemStub_SDL::unlockYUV() {
 	if (_videoBuffer) {
 		SDL_UpdateTexture(_videoTexture, NULL, _videoBuffer, _videoW * sizeof(uint16_t));
 	}
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 	renderCopyVita(_renderer, _videoTexture);
 #else
 	SDL_RenderCopy(_renderer, _videoTexture, NULL, NULL);
@@ -416,7 +416,7 @@ void SystemStub_SDL::processEvents() {
 	}
 }
 
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 void SystemStub_SDL::renderCopyVita(SDL_Renderer *renderer, SDL_Texture *texture) {
 
 	SDL_Rect src;
@@ -441,7 +441,7 @@ void SystemStub_SDL::renderCopyVita(SDL_Renderer *renderer, SDL_Texture *texture
 
 void SystemStub_SDL::handleEvent(const SDL_Event &ev, bool &paused) {
 	switch (ev.type) {
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 		case SDL_JOYBUTTONDOWN:
 		case SDL_JOYBUTTONUP:
 			if (_joystick) {

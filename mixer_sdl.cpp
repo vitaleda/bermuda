@@ -66,7 +66,7 @@ struct MixerSDL: Mixer {
 		stopMusic();
 		const char *ext = strrchr(f->_path, '.');
 		if (ext) {
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 			loadMusicVita(f);
 			*id = -1;
 			return;
@@ -109,7 +109,7 @@ struct MixerSDL: Mixer {
 		}
 	}
 
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 	void loadMusicVita(File *f) {
 		_musicBuf = (uint8_t *)malloc(f->size());
 		if (_musicBuf) {

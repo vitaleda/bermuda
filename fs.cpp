@@ -10,7 +10,7 @@
 #ifdef BERMUDA_POSIX
 #include <dirent.h>
 #include <sys/stat.h>
-#elif BERMUDA_VITA
+#elif __vita__
 #include <psp2/io/dirent.h>
 #include <psp2/io/stat.h>
 #include <psp2/types.h>
@@ -105,10 +105,10 @@ struct FileSystem_Win32 : FileSystem_impl {
 FileSystem_impl *FileSystem_impl::create() { return new FileSystem_Win32; }
 #endif
 
-#if defined(BERMUDA_POSIX) || defined(BERMUDA_VITA)
+#if defined(BERMUDA_POSIX) || defined(__vita__)
 struct FileSystem_POSIX : FileSystem_impl {
 	void buildFileListFromDirectory(const char *dir) {
-#ifdef BERMUDA_VITA
+#ifdef __vita__
 		SceUID d = sceIoDopen(dir);
 
 		if (d) {
