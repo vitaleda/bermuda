@@ -32,7 +32,11 @@ struct MixerSDL: Mixer {
 			warning("Mix_OpenAudio failed: %s", Mix_GetError());
 		}
 		Mix_AllocateChannels(kChannels);
+#ifdef __vita__
+		Mix_VolumeMusic(MIX_MAX_VOLUME);
+#else
 		Mix_VolumeMusic(MIX_MAX_VOLUME / 2);
+#endif
 		_isOpen = true;
 	}
 	virtual void close() {
@@ -66,15 +70,11 @@ struct MixerSDL: Mixer {
 		stopMusic();
 		const char *ext = strrchr(f->_path, '.');
 		if (ext) {
-#ifndef __vita__
 			if (strcasecmp(ext, ".ogg") != 0 && strcasecmp(ext, ".mid") != 0) {
-#endif
 				loadMusic(f);
 				*id = -1;
 				return;
-#ifndef __vita__
 			}
-#endif
 		}
 		playMusic(f->_path);
 		*id = -1;
@@ -97,11 +97,7 @@ struct MixerSDL: Mixer {
 			const int size = f->read(_musicBuf, f->size());
 			SDL_RWops *rw = SDL_RWFromConstMem(_musicBuf, size);
 			if (rw) {
-#ifdef __vita__
-				_music = Mix_LoadMUS_RW(rw, size);
-#else
 				_music = Mix_LoadMUSType_RW(rw, MUS_MID, 1);
-#endif
 				if (_music) {
 					Mix_PlayMusic(_music, 0);
 				} else {

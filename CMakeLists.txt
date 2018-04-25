@@ -82,4 +82,16 @@ vita_create_vpk(${VITA_APPNAME}.vpk ${VITA_TITLEID} eboot.bin
   FILE res/bg.png sce_sys/livearea/contents/bg.png
   FILE res/startup.png sce_sys/livearea/contents/startup.png
   FILE res/template.xml sce_sys/livearea/contents/template.xml
+  FILE res/track01.ogg MUSIC/track01.ogg
+  FILE res/track02.ogg MUSIC/track02.ogg
+  FILE res/track03.ogg MUSIC/track03.ogg
+  FILE res/track04.ogg MUSIC/track04.ogg
+  FILE res/track05.ogg MUSIC/track05.ogg
+  FILE res/track06.ogg MUSIC/track06.ogg
+  FILE res/track07.ogg MUSIC/track07.ogg
+  FILE res/track08.ogg MUSIC/track08.ogg
+  FILE res/track09.ogg MUSIC/track09.ogg
+  FILE res/track10.ogg MUSIC/track10.ogg
+  FILE res/track11.ogg MUSIC/track11.ogg
+  FILE res/track12.ogg MUSIC/track12.ogg
 )

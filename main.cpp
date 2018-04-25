@@ -59,11 +59,10 @@ int main(int argc, char *argv[]) {
 	sceIoMkdir("ux0:data/bermuda", 0777);
 	sceIoMkdir("ux0:data/bermuda/DATA", 0777);
 	sceIoMkdir("ux0:data/bermuda/SAVE", 0777);
-	sceIoMkdir("ux0:data/bermuda/MUSIC", 0777);
 
 	const char *dataPath = "ux0:data/bermuda/DATA";
 	const char *savePath = "ux0:data/bermuda/SAVE";
-	const char *musicPath = "ux0:data/bermuda/MUSIC";
+	const char *musicPath = "app0:MUSIC";
 #else
 	char *dataPath = 0;
 	char *savePath = 0;
