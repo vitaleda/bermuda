@@ -342,6 +342,8 @@ void Game::updateKeysPressedTable() {
 		if (slot >= 1 && slot <= 999) {
 			_stateSlot = slot;
 			debug(DBG_INFO, "Current game state slot is %d", _stateSlot);
+			sprintf(_stub->message, "Current game state slot is %d", _stateSlot);
+			_stub->delay = 50;
 		}
 		_stub->_pi.stateSlot = 0;
 	}
@@ -352,6 +354,8 @@ void Game::updateKeysPressedTable() {
 		File f;
 		if (!f.open(filePath, "rb")) {
 			warning("Unable to load game state from file '%s'", filePath);
+			sprintf(_stub->message, "Unable to load game state from file '%s'", filePath);
+			_stub->delay = 50;
 		} else {
 			loadState(&f, _stateSlot, true);
 			_loadState = _switchScene; // gamestate will get loaded on scene switch
@@ -364,6 +368,8 @@ void Game::updateKeysPressedTable() {
 		File f;
 		if (!f.open(filePath, "wb")) {
 			warning("Unable to save game state to file '%s'", filePath);
+			sprintf(_stub->message, "Unable to save game state to file '%s'", filePath);
+			_stub->delay = 50;
 		} else {
 			saveState(&f, _stateSlot);
 		}

@@ -9,9 +9,9 @@ DEFINES = -DBERMUDA_POSIX -DBERMUDA_VORBIS -DBERMUDA_ZLIB
 VORBIS_LIBS = -lvorbisfile -lvorbis -logg
 
 SDL_CFLAGS = `sdl2-config --cflags`
-SDL_LIBS = `sdl2-config --libs` -lSDL2_mixer
+SDL_LIBS = `sdl2-config --libs` -lSDL2_mixer -lSDL2_ttf
 
-CXXFLAGS = -g -O -Wall $(SDL_CFLAGS) $(DEFINES)
+CXXFLAGS = -g -O -Wall -Wno-narrowing $(SDL_CFLAGS) $(DEFINES)
 
 OBJDIR = obj
 

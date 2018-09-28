@@ -38,6 +38,9 @@ struct SystemStub {
 	bool _quit;
 	PlayerInput _pi;
 
+	char message[512];
+	int delay;
+
 	virtual ~SystemStub() {}
 
 	virtual void init(const char *title, int w, int h) = 0;

@@ -4,25 +4,33 @@
  */
 
 #include <SDL.h>
+#include <SDL_ttf.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
-#elif __SWITCH__
-#define BTN_A      0
-#define BTN_B      1
-#define BTN_X      2
-#define BTN_Y      3
-#define BTN_L      6
-#define BTN_R      7
-#define BTN_PLUS  10
-#define BTN_MINUS 11
-#define BTN_LEFT  12
-#define BTN_UP    13
-#define BTN_RIGHT 14
-#define BTN_DOWN  15
 #endif
+#include "font.h"
 #include "mixer.h"
 #include "screenshot.h"
 #include "systemstub.h"
+
+enum {
+	BTN_A,
+	BTN_B,
+	BTN_X,
+	BTN_Y,
+	BTN_LSTICK,
+	BTN_RSTICK,
+	BTN_L,
+	BTN_R,
+	BTN_ZL,
+	BTN_ZR,
+	BTN_PLUS,
+	BTN_MINUS,
+	BTN_LEFT,
+	BTN_UP,
+	BTN_RIGHT,
+	BTN_DOWN
+};
 
 enum {
 	kSoundSampleRate = 22050,
@@ -57,6 +65,7 @@ struct SystemStub_SDL : SystemStub {
 	const uint8_t *_iconData;
 	int _iconSize;
 	int _screenshot;
+	TTF_Font *_font;
 
 	SystemStub_SDL() :
 #if SDL_VERSION_ATLEAST(2, 0, 0)
@@ -159,6 +168,9 @@ void SystemStub_SDL::init(const char *title, int w, int h) {
 	SDL_WM_SetCaption(title, NULL);
 #endif
 
+	TTF_Init();
+	_font = TTF_OpenFontRW(SDL_RWFromConstMem(sysfont, sysfont_length), 1, 20);
+
 	_screenW = w;
 	_screenH = h;
 
@@ -218,6 +230,10 @@ void SystemStub_SDL::destroy() {
 		free(_gameBuffer);
 		_gameBuffer = 0;
 	}
+
+	TTF_CloseFont(_font);
+	TTF_Quit();
+
 	SDL_Quit();
 }
 
@@ -306,6 +322,18 @@ void SystemStub_SDL::updateScreen() {
 	SDL_RenderClear(_renderer);
 	SDL_UpdateTexture(_gameTexture, NULL, _gameBuffer, _screenW * sizeof(uint32_t));
 	SDL_RenderCopy(_renderer, _gameTexture, NULL, NULL);
+	if (delay > 0) {
+		int w = 0, h = 0;
+		uint8_t cmp = (strncmp(message, "Unable", 6) == 0) ? 0 : 255;
+		SDL_Surface *fontSurface = TTF_RenderText_Shaded(_font, message, { 255, cmp, cmp }, { 0, 0, 0 });
+		SDL_Texture *fontTexture = SDL_CreateTextureFromSurface(_renderer, fontSurface);
+		SDL_QueryTexture(fontTexture, NULL, NULL, &w, &h);
+		SDL_Rect dst = { 0, 0, w, h };
+		SDL_RenderCopy(_renderer, fontTexture, NULL, &dst);
+		SDL_FreeSurface(fontSurface);
+		SDL_DestroyTexture(fontTexture);
+		delay--;
+	}
 	SDL_RenderPresent(_renderer);
 #else
 	if (SDL_LockSurface(_screen) == 0) {
@@ -707,6 +735,12 @@ void SystemStub_SDL::handleEvent(const SDL_Event &ev, bool &paused) {
 				break;
 			case BTN_R:
 				_pi.save = pressed;
+				break;
+			case BTN_ZL:
+				_pi.stateSlot = -1 * pressed;
+				break;
+			case BTN_ZR:
+				_pi.stateSlot = 1 * pressed;
 				break;
 			case BTN_MINUS:
 				if (pressed) {

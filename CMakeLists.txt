@@ -25,11 +25,13 @@ add_executable(${CMAKE_PROJECT_NAME}.elf
 target_link_libraries(${CMAKE_PROJECT_NAME}.elf
   SDL2_image
   SDL2_mixer
+  SDL2_ttf
   SDL2
   EGL
   glapi
   drm_nouveau
   jpeg
+  freetype
   png
   mpg123
   vorbisfile
@@ -37,6 +39,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}.elf
   ogg
   modplug
   mikmod
+  bz2
   z
   nx
   m
