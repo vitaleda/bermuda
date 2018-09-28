@@ -373,6 +373,7 @@ void AVI_Player::play(File *f) {
 		_mixer->setMusicMix(0, 0);
 		_stub->setYUV(false, 0, 0);
 		_demux.close();
+		_mixer->stopAll();
 	}
 }
 

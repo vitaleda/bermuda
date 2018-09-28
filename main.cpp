@@ -7,6 +7,9 @@
 #include <sys/stat.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#elif __SWITCH__
+#include <switch.h>
+#else
 #endif
 #include "game.h"
 #include "systemstub.h"
@@ -44,6 +47,10 @@ static void mainLoop() {
 
 #undef main
 int main(int argc, char *argv[]) {
+#ifdef __SWITCH__
+	socketInitializeDefault();
+	nxlinkStdio();
+#endif
 	char *dataPath = 0;
 	char *savePath = 0;
 	char *musicPath = 0;

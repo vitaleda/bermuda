@@ -6,6 +6,19 @@
 #include <SDL.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#elif __SWITCH__
+#define BTN_A      0
+#define BTN_B      1
+#define BTN_X      2
+#define BTN_Y      3
+#define BTN_L      6
+#define BTN_R      7
+#define BTN_PLUS  10
+#define BTN_MINUS 11
+#define BTN_LEFT  12
+#define BTN_UP    13
+#define BTN_RIGHT 14
+#define BTN_DOWN  15
 #endif
 #include "mixer.h"
 #include "screenshot.h"
@@ -26,6 +39,9 @@ struct SystemStub_SDL : SystemStub {
 	SDL_Texture *_gameTexture;
 	SDL_Texture *_videoTexture;
 	SDL_GameController *_controller;
+#ifdef __SWITCH__
+	SDL_Joystick *_joystick;
+#endif
 #else
 	SDL_Surface *_screen;
 	SDL_Overlay *_yuv;
@@ -97,7 +113,11 @@ static int eventHandler(void *userdata, SDL_Event *ev) {
 #endif
 
 void SystemStub_SDL::init(const char *title, int w, int h) {
+#ifdef __SWITCH__
+	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK);
+#else
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER);
+#endif
 	SDL_ShowCursor(SDL_DISABLE);
 	_quit = false;
 	memset(&_pi, 0, sizeof(_pi));
@@ -122,6 +142,10 @@ void SystemStub_SDL::init(const char *title, int w, int h) {
 	_gameTexture = SDL_CreateTexture(_renderer, pfmt, SDL_TEXTUREACCESS_STREAMING, _screenW, _screenH);
 	_fmt = SDL_AllocFormat(pfmt);
 
+#ifdef __SWITCH__
+	_joystick = SDL_JoystickOpen(0);
+	_controller = 0;
+#else
 	SDL_GameControllerAddMappingsFromFile("gamecontrollerdb.txt");
 	_controller = 0;
 	for (int i = 0; i < SDL_NumJoysticks(); ++i) {
@@ -130,6 +154,7 @@ void SystemStub_SDL::init(const char *title, int w, int h) {
 			break;
 		}
 	}
+#endif
 #else
 	SDL_WM_SetCaption(title, NULL);
 #endif
@@ -177,6 +202,12 @@ void SystemStub_SDL::destroy() {
 	if (_controller) {
 		SDL_GameControllerClose(_controller);
 	}
+#ifdef __SWITCH__
+	if (_joystick) {
+		SDL_JoystickClose(_joystick);
+		_joystick = 0;
+	}
+#endif
 #else
 	if (_screen) {
 		// free()'d by SDL_Quit()
@@ -626,6 +657,70 @@ void SystemStub_SDL::handleEvent(const SDL_Event &ev, bool &paused) {
 		break;
 	default:
 		break;
+#ifdef __SWITCH__
+	case SDL_JOYBUTTONDOWN:
+	case SDL_JOYBUTTONUP:
+		const bool pressed = (ev.jbutton.state == SDL_PRESSED);
+		switch (ev.jbutton.button) {
+			case BTN_Y:
+				_pi.space = pressed; // use weapon
+				break;
+			case BTN_B:
+				_pi.shift = pressed; // run / store weapon
+				break;
+			case BTN_A:
+				_pi.enter = pressed; // use current selected item / skip video or dialogue
+				break;
+			case BTN_X:
+				_pi.tab = pressed;   // display inventory
+				break;
+			case BTN_UP:
+				if (pressed) {
+					_pi.dirMask |= PlayerInput::DIR_UP;
+				} else if (ev.jbutton.state == SDL_RELEASED){
+					_pi.dirMask &= ~PlayerInput::DIR_UP;
+				}
+				break;
+			case BTN_RIGHT:
+				if (pressed) {
+					_pi.dirMask |= PlayerInput::DIR_RIGHT;
+				} else if (ev.jbutton.state == SDL_RELEASED){
+					_pi.dirMask &= ~PlayerInput::DIR_RIGHT;
+				}
+				break;
+			case BTN_DOWN:
+				if (pressed) {
+					_pi.dirMask |= PlayerInput::DIR_DOWN;
+				} else if (ev.jbutton.state == SDL_RELEASED) {
+					_pi.dirMask &= ~PlayerInput::DIR_DOWN;
+				}
+				break;
+			case BTN_LEFT:
+				if (pressed) {
+					_pi.dirMask |= PlayerInput::DIR_LEFT;
+				} else if (ev.jbutton.state == SDL_RELEASED){
+					_pi.dirMask &= ~PlayerInput::DIR_LEFT;
+				}
+				break;
+			case BTN_L:
+				_pi.load = pressed;
+				break;
+			case BTN_R:
+				_pi.save = pressed;
+				break;
+			case BTN_MINUS:
+				if (pressed) {
+					setFullscreen(!_fullScreenDisplay);
+				}
+				break;
+			case BTN_PLUS:
+				_pi.escape = pressed;
+				break;
+			default:
+				break;
+		}
+	break;
+#endif
 	}
 }
 
@@ -673,7 +768,13 @@ int SystemStub_SDL::getOutputSampleRate() {
 void SystemStub_SDL::setFullscreen(bool fullscreen) {
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	if (_fullScreenDisplay != fullscreen) {
+#ifdef __SWITCH__
+		int _w, _h;
+		SDL_GetWindowSize(_window, &_w, &_h);
+		SDL_SetWindowSize(_window, fullscreen ? _w * 2 : _w / 2, fullscreen ? _h * 1.5 : _h / 1.5);
+#else
 		SDL_SetWindowFullscreen(_window, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+#endif
 		_fullScreenDisplay = fullscreen;
 	}
 #else

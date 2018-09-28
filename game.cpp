@@ -51,6 +51,7 @@ void Game::detectVersion() {
 }
 
 void Game::restart() {
+	//clearSceneData(-1);
 	_mixer->stopAll();
 	_mixerSoundId = Mixer::kDefaultSoundId;
 	_mixerMusicId = Mixer::kDefaultSoundId;
@@ -1103,12 +1104,10 @@ void Game::playMusic(const char *name) {
 			char filePath[512];
 			snprintf(filePath, sizeof(filePath), "%s/track%02d.ogg", _musicPath, _midiMapping[i].digitalTrack);
 			debug(DBG_GAME, "playMusic('%s') track %s", name, filePath);
-			File *f = new File;
-			if (f->open(filePath)) {
-				_mixer->playMusic(f, &_mixerMusicId);
+			File f;
+			if (f.open(filePath)) {
+				_mixer->playMusic(&f, &_mixerMusicId);
 				return;
-			} else {
-				delete f;
 			}
 		}
 	}

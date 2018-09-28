@@ -28,11 +28,19 @@ struct MixerSDL: Mixer {
 	virtual void open() {
 		assert(!_isOpen);
 		Mix_Init(MIX_INIT_OGG | MIX_INIT_MID);
+#ifdef __SWITCH__
+		if (Mix_OpenAudioDevice(kMixFreq, AUDIO_S16SYS, 2, kMixBufSize, NULL, 0) < 0) {
+#else
 		if (Mix_OpenAudio(kMixFreq, AUDIO_S16SYS, 2, kMixBufSize) < 0) {
+#endif
 			warning("Mix_OpenAudio failed: %s", Mix_GetError());
 		}
 		Mix_AllocateChannels(kChannels);
+#ifdef __SWITCH__
+		Mix_VolumeMusic(MIX_MAX_VOLUME);
+#else
 		Mix_VolumeMusic(MIX_MAX_VOLUME / 2);
+#endif
 		_isOpen = true;
 	}
 	virtual void close() {
