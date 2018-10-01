@@ -109,5 +109,8 @@ int main(int argc, char *argv[]) {
 	free(dataPath);
 	free(savePath);
 	free(musicPath);
+#ifdef  __SWITCH__
+	socketExit();
+#endif
 	return 0;
 }
