@@ -27,6 +27,9 @@ struct MixerSDL: Mixer {
 
 	virtual void open() {
 		assert(!_isOpen);
+#ifdef __SWITCH__
+		SDL_setenv("SDL_SOUNDFONTS", "/soundfonts/bermuda.sf2", 1);
+#endif
 		Mix_Init(MIX_INIT_OGG | MIX_INIT_MID);
 #ifdef __SWITCH__
 		if (Mix_OpenAudioDevice(kMixFreq, AUDIO_S16SYS, 2, kMixBufSize, NULL, 0) < 0) {
