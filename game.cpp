@@ -121,7 +121,7 @@ void Game::restart() {
 	_keyboardReplayData = 0;
 }
 
-void Game::init() {
+void Game::init(bool fullscreen, int screenMode) {
 	const char *caption = kGameWindowTitle;
 	if (_isDemo) {
 		_stub->setIcon(_bermudaDemoBmpData, _bermudaDemoBmpSize);
@@ -129,7 +129,7 @@ void Game::init() {
 	} else {
 		_stub->setIcon(_bermudaIconBmpData, _bermudaIconBmpSize);
 	}
-	_stub->init(caption, kGameScreenWidth, kGameScreenHeight);
+	_stub->init(caption, kGameScreenWidth, kGameScreenHeight, fullscreen, screenMode);
 	allocateTables();
 	loadCommonSprites();
 	restart();
@@ -228,7 +228,8 @@ void Game::mainLoop() {
 				}
 			}
 			if (_loadDataState != 0) {
-				setupScreenPalette(_bitmapBuffer0 + kOffsetBitmapPalette);
+				_stub->setPalette(_bitmapBuffer0 + kOffsetBitmapPalette, 256);
+				_stub->copyRectWidescreen(kGameScreenWidth, kGameScreenHeight, _bitmapBuffer1.bits, _bitmapBuffer1.pitch);
 			}
 			_gameOver = false;
 			_workaroundRaftFlySceneBug = strncmp(_currentSceneScn, "FLY", 3) == 0;
@@ -386,10 +387,6 @@ void Game::updateKeysPressedTable() {
 			restart();
 		}
 	}
-}
-
-void Game::setupScreenPalette(const uint8_t *src) {
-	_stub->setPalette(src, 256);
 }
 
 void Game::clearSceneData(int anim) {
@@ -1058,6 +1055,7 @@ void Game::playVideo(const char *name) {
 		File f;
 		if (f.open(filePath)) {
 			_stub->fillRect(0, 0, kGameScreenWidth, kGameScreenHeight, 0);
+			_stub->clearWidescreen();
 			_stub->updateScreen();
 			AVI_Player player(_mixer, _stub);
 			player.play(&f);
@@ -1072,6 +1070,7 @@ void Game::displayTitleBitmap() {
 	playMusic("..\\midi\\title.mid");
 	_stub->setPalette(_bitmapBuffer0 + kOffsetBitmapPalette, 256);
 	_stub->copyRect(0, 0, kGameScreenWidth, kGameScreenHeight, _bitmapBuffer1.bits, _bitmapBuffer1.pitch);
+	_stub->copyRectWidescreen(kGameScreenWidth, kGameScreenHeight, _bitmapBuffer1.bits, _bitmapBuffer1.pitch);
 }
 
 void Game::stopMusic() {
@@ -1144,13 +1143,6 @@ void Game::changeObjectMotionFrame(int object, int object2, int useObject2, int 
 				x -= _sceneObjectFramesTable[so->frameNum].hdr.xPos;
 			}
 			so->x = x + _sceneObjectFramesTable[so->frameNumPrev].hdr.w - _sceneObjectFramesTable[so->frameNum].hdr.w;
-/*			int y = so->yPrev - _sceneObjectFramesTable[so->frameNumPrev].hdr.yPos;
-			if (useDy) {
-				y += dy;
-			} else {
-				y += _sceneObjectFramesTable[so->frameNum].hdr.yPos;
-			}
-			so->y = y;*/
 		} else {
 			int x = so->xPrev - _sceneObjectFramesTable[so->frameNumPrev].hdr.xPos;
 			if (useDx) {
@@ -1159,13 +1151,6 @@ void Game::changeObjectMotionFrame(int object, int object2, int useObject2, int 
 				x += _sceneObjectFramesTable[so->frameNum].hdr.xPos;
 			}
 			so->x = x;
-/*			int y = so->yPrev - _sceneObjectFramesTable[so->frameNumPrev].hdr.yPos;
-			if (useDy) {
-				y += dy;
-			} else {
-				y += _sceneObjectFramesTable[so->frameNum].hdr.yPos;
-			}
-			so->y = y;*/
 		}
 		int y = so->yPrev - _sceneObjectFramesTable[so->frameNumPrev].hdr.yPos;
 		if (useDy) {

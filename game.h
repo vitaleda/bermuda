@@ -297,12 +297,11 @@ struct Game {
 	// game.cpp
 	void detectVersion();
 	void restart();
-	void init();
+	void init(bool fullscreen, int screenMode);
 	void fini();
 	void mainLoop();
 	void updateMouseButtonsPressed();
 	void updateKeysPressedTable();
-	void setupScreenPalette(const uint8_t *src);
 	void clearSceneData(int anim);
 	void reinitializeObject(int object);
 	void updateObjects();
