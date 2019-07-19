@@ -321,7 +321,7 @@ void Game::loadMOV(const char *fileName) {
 				len = fp->readUint16LE();
 				fp->read(so->name, len);
 				for (int i = 0; i < _sceneObjectsCount; ++i) {
-					if (strcmp(_sceneObjectsTable[i].name, so->name) == 0) {
+					if (strcmp(_sceneObjectsTable[i].name, so->name) == 0 && strcmp(so->name, "MENU") != 0) {
 						error("Duplicate object name %s", so->name);
 					}
 				}
